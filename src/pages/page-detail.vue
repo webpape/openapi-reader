@@ -1,31 +1,95 @@
 <template>
    <q-page padding>
-      <div class="text-h4">{{ theOperation?.operation?.summary }}</div>
+      <div class="text-h5">{{ theOperation?.operation?.summary }}</div>
       <div v-if="theOperation.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
          <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
          {{ theOperation.route }}
+         <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
       </div>
-      <div class="text-body2">
-         {{ theOperation.operation?.description }}
+      <div v-if="theOperation.operation?.description" class="text-body2 q-mb-md">
+         {{ theOperation.operation.description }}
       </div>
 
-      <div v-if="theRequestTree">
-         <div class="text-h5">Request</div>
-         <div class="text-h6">Body</div>
+      <div v-if="theOperation.operation?.parameters">
+         <div class="text-h6 text-uppercase">Path Parameters</div>
          <div class="text-body2">
-            <pre style="font-size: 10px; line-height: 12px">{{ theRequestTree }}</pre>
-            <!-- <q-tree :nodes="simple" node-key="label" :filter="filter" default-expand-all /> -->
+            <q-tree :nodes="getParameterTree()" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+               <template #default-header="prop">
+                  <div class="row items-center">
+                     <div style="font-family: Inconsolata" class="text-weight-bold">
+                        {{ prop.node.label }}
+                     </div>
+                     <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
+                  </div>
+                  <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                     <div>{{ prop.node.type }}</div>
+                  </div>
+               </template>
+               <template #default-body="prop">
+                  <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
+                  <div style="font-size: 12px; line-height: 16px" class="text-grey-7">{{ prop.node.description }}</div>
+               </template>
+            </q-tree>
          </div>
       </div>
 
-      <pre v-if="theOperation" style="font-size: 10px; line-height: 12px">{{ theOperation }}</pre>
+      <div v-if="theOperation.operation?.requestBody">
+         <div class="text-h6 text-uppercase">Request Body</div>
+         <div class="text-body2">
+            <q-tree :nodes="getRequestTree()" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+               <template #default-header="prop">
+                  <div class="row items-center">
+                     <div style="font-family: Inconsolata" class="text-weight-bold">
+                        {{ prop.node.label }}
+                     </div>
+                     <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
+                  </div>
+                  <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                     <div>{{ prop.node.type }}</div>
+                  </div>
+               </template>
+               <template #default-body="prop">
+                  <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
+                     <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
+                  </div>
+               </template>
+            </q-tree>
+         </div>
+      </div>
+
+      <div v-if="theOperation.operation?.responses" class="q-mt-md">
+         <div class="text-h6 text-uppercase">Responses</div>
+         <div class="text-body2">
+            <q-tree :nodes="getResponseTree()" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+               <template #default-header="prop">
+                  <div class="row items-center">
+                     <div style="font-family: Inconsolata" class="text-weight-bold">
+                        {{ prop.node.label }}
+                     </div>
+                     <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
+                  </div>
+                  <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                     <div>{{ prop.node.type }}</div>
+                  </div>
+               </template>
+               <template #default-body="prop">
+                  <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
+                     <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
+                  </div>
+               </template>
+            </q-tree>
+         </div>
+      </div>
+
+      <!-- <pre v-if="theOperation" style="font-size: 10px; line-height: 12px">{{ theOperation }}</pre> -->
    </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, inject, computed } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
-import { QTreeNode } from 'quasar'
+// import { QTreeNode } from 'quasar'
 import { OpenAPIV3 } from 'openapi-types'
 import { UOpenApi } from 'src/utils/openapi'
 
@@ -39,10 +103,11 @@ interface IAdditionnalDocument {
 type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 
 const route = useRoute()
+const quasar = useQuasar()
 
 const theOpenapiDocument = ref(inject('theOpenapiDocument') as IEzmaxDocument | undefined)
 const theParams = ref(route.params)
-const theRequestTree = ref<QTreeNode[]>([])
+// const theRequestTree = ref<QTreeNode[]>([])
 
 const theOperation = computed(() => {
    if (theOpenapiDocument.value) {
@@ -115,46 +180,195 @@ const theOperation = computed(() => {
    }
 })
 
-function loadRequestTree() {
-   const requestBody = theOperation.value.operation?.requestBody as any
-   const applicationJsonSchema = UOpenApi.findRefs(requestBody?.content?.['application/json']?.schema, theOpenapiDocument.value)
-   const properties = applicationJsonSchema?.properties
-   theRequestTree.value = properties
-   // if (properties) {
-   //    let tree = []
-   //    for (const key in properties) {
-   //       const value = object[key]
-   //       tree.push({
-   //          label: key,
-   //          children:
-   //       })
-   //       if (properties.hasOwnProperty(key)) {
-   //          const value = object[key]
-   //          object[key] = this.findRefs(value, openapiDocument)
-   //       }
-   //    }
-   // }
+// function loadRequestTree() {
+//    const requestBody = theOperation.value.operation?.requestBody as any
+//    const applicationJsonSchema = UOpenApi.findRefs(requestBody?.content?.['application/json']?.schema, theOpenapiDocument.value)
+//    const ref = applicationJsonSchema?.$ref
+
+//    theRequestTree.value = getTree(ref)
+// }
+
+function getTree(ref: any): any[] {
+   let tree = []
+   const properties = getProperties(ref)
+
+   if (properties) {
+      for (const key in properties) {
+         const element = properties[key]
+         let children: any[] = []
+         const isRequired = ref.required && ref.required.length > 0 && ref.required.includes(key) ? true : false
+
+         if (element?.items?.allOf && element.items.allOf.length > 0) {
+            for (let index = 0; index < element.items.allOf.length; index++) {
+               if (element.items.allOf[index]?.ref) children = [...children, ...getTree(element.items.allOf[index]?.ref)]
+               else if (element.items.allOf[index]) children = [...children, ...getTree(element.items.allOf[index])]
+            }
+         }
+
+         if (element?.allOf && element.allOf.length > 0) {
+            for (let index = 0; index < element.allOf.length; index++) {
+               if (element.allOf[index]?.ref) children = [...children, ...getTree(element.allOf[index]?.ref)]
+               else if (element.allOf[index]) children = [...children, ...getTree(element.allOf[index])]
+            }
+         }
+
+         if (element?.properties) {
+            children = [...children, ...getTree(element)]
+         }
+
+         if (element?.items?.properties) {
+            children = [...children, ...getTree(element?.items)]
+         }
+
+         children.sort((a, b) => customSort(a.label, b.label))
+
+         tree.push({
+            label: key,
+            children: children,
+            description: element.description,
+            maximum: element.maximum,
+            minimum: element.minimum,
+            type: element.type,
+            pattern: element.pattern,
+            enum: element.enum || [],
+            required: isRequired
+         })
+      }
+   }
+
+   tree.sort((a, b) => customSort(a.label, b.label))
+
+   return tree
 }
 
-// const theRequestTree = computed(() => {
-//    const requestBody = theOperation.value.operation?.requestBody as any
-//    const schemaRef = requestBody.content?.['application/json']?.schema?.$ref
+function customSort(a: string, b: string) {
+   const order: any = {
+      mPayload: 0,
+      a_obj: 1,
+      obj: 2,
+      pki: 3,
+      fki: 4,
+      objAudit: 5,
+      objDebug: 6,
+      objDebugPayload: 7
+   }
 
-//    if (schemaRef) return UOpenApi.findSchema(schemaRef, theOpenapiDocument.value)
-//    else return requestBody.content?.['application/json']?.schema
-// })
+   const getSortValue = (label: string) => {
+      for (const key in order) {
+         if (label.startsWith(key)) {
+            return order[key]
+         }
+      }
+      return 8 // Default value for other labels
+   }
+
+   const valueA = getSortValue(a)
+   const valueB = getSortValue(b)
+
+   if (valueA !== valueB) {
+      return valueA - valueB
+   } else {
+      return a.localeCompare(b) // Sort alphabetically for labels within the same category
+   }
+}
+
+function getProperties(ref: any) {
+   let properties: any = {}
+
+   if (ref?.allOf) {
+      ref.allOf.forEach((element: any) => {
+         if (element?.properties) {
+            properties = { ...properties, ...element.properties }
+         }
+      })
+   }
+
+   if (ref?.properties) {
+      if (ref?.properties?.allOf) {
+         properties = { ...properties, ...getProperties(ref.properties.allOf) }
+      } else {
+         properties = { ...properties, ...ref.properties }
+      }
+   }
+
+   return properties
+}
+
+function getRequestTree() {
+   const requestBody = theOperation.value.operation?.requestBody as any
+   const applicationJsonSchema = UOpenApi.findRefs(requestBody?.content?.['application/json']?.schema, theOpenapiDocument.value)
+   const ref = applicationJsonSchema?.$ref
+   // console.log('request tree', getTree(ref))
+   return getTree(ref)
+}
+
+function getResponseTree() {
+   let tree = []
+
+   const responses = theOperation.value.operation?.responses as any
+
+   for (const key in responses) {
+      const response = responses[key]
+      const applicationJsonSchema = UOpenApi.findRefs(response?.content?.['application/json']?.schema, theOpenapiDocument.value)
+      const ref = applicationJsonSchema?.$ref
+
+      tree.push({
+         label: key,
+         children: getTree(ref)
+      })
+   }
+
+   // console.log('response tree', tree)
+   return tree
+}
+
+function getParameterTree() {
+   let tree = []
+
+   const parameters = theOperation.value.operation?.parameters as any
+
+   for (const key in parameters) {
+      const parameter = parameters[key]
+      const applicationJsonSchema = UOpenApi.findRefs(parameter, theOpenapiDocument.value)
+      const ref = applicationJsonSchema?.$ref || applicationJsonSchema
+
+      console.log(ref)
+
+      tree.push({
+         label: ref?.name,
+         ...ref?.schema
+      })
+   }
+
+   return tree
+}
+
+function onCopy() {
+   navigator.clipboard.writeText(theOperation.value.route)
+   quasar.notify({
+      message: 'La route a été copié avec succès',
+      color: 'positive'
+   })
+}
 
 watch(
    () => route.params,
    () => {
       theParams.value = route.params
-      loadRequestTree()
-   }
+      // loadRequestTree()
+   },
+   { deep: true }
 )
+
+theParams.value = route.params
+
+// loadRequestTree()
 </script>
 
 <style lang="scss">
 // $
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@200;300;400;500;600;700;800;900&display=swap');
+
 .method_get {
    background-color: $green-9;
 }
