@@ -19,8 +19,14 @@
          </div>
          <q-list dense class="q-mb-md">
             <template v-for="tagGroup in theTagGroupsFiltered" :key="tagGroup.name">
-               <q-item-label header class="q-pb-xs text-uppercase">{{ tagGroup.name }}</q-item-label>
-               <q-expansion-item dense v-for="tag in tagGroup.tags" group="ex-item" expand-icon="none" :key="tag" :label="formatTag(tag)" class="text-grey-10" style="font-size: 11px" @click="setCollapsedItemObjectByTag(tag)">
+               <q-item-label header class="q-pb-xs text-uppercase text-weight-bold text-black">{{ tagGroup.name }}</q-item-label>
+               <q-expansion-item :model-value="theParams.object == tag" dense v-for="tag in tagGroup.tags" :id="'Tag_' + tag" group="ex-item" expand-icon="none" :key="tag" class="text-grey-10" style="font-size: 11px" @click="setCollapsedItemObjectByTag(tag)">
+                  <template #header>
+                     <div class="row items-center">
+                        <div v-if="tag == theCollapsedItemTag && theCollapsedItems && theCollapsedItems.length > 0" class="text-weight-bold">{{ formatTag(tag) }}</div>
+                        <div v-else>{{ formatTag(tag) }}</div>
+                     </div>
+                  </template>
                   <q-list dense v-if="tag == theCollapsedItemTag && theCollapsedItems && theCollapsedItems.length > 0">
                      <template v-for="collapsedItem in theCollapsedItems" :key="collapsedItem.description">
                         <q-item v-show="collapsedItem.get" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.get?.operationId } }">
@@ -64,9 +70,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, provide, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { api } from 'boot/axios'
+import { useRouter, useRoute } from 'vue-router'
+import { scroll } from 'quasar'
 import { OpenAPIV3 } from 'openapi-types'
+
+import fileSpecJSON from 'G:/ezmax.api/appcluster01/specs/internal.json'
+
+const { getScrollTarget, setVerticalScrollPosition } = scroll
 
 interface IAdditionnalDocument {
    'x-tagGroups': {
@@ -78,12 +88,14 @@ interface IAdditionnalDocument {
 type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 
 const router = useRouter()
+const route = useRoute()
 
 let theOpenapiDocumentRaw = {} as IEzmaxDocument
 const theOpenapiDocument = ref<IEzmaxDocument>()
 const theCollapsedItemTag = ref('')
 const theCollapsedItems = ref<OpenAPIV3.PathItemObject[]>([])
 const theSearch = ref('')
+const theParams = ref(route.params)
 
 const isDrawerOpen = ref(false)
 
@@ -101,15 +113,20 @@ const theTagGroupsFiltered = computed(() => {
 })
 
 function fetchOpenapiDocument() {
-   api.get('ezmax.v1.1.json').then((res) => {
-      const openapiDocument = res.data as IEzmaxDocument
+   const openapiDocument = fileSpecJSON as IEzmaxDocument
+   theOpenapiDocumentRaw = openapiDocument
+   theOpenapiDocument.value = openapiDocument
 
-      theOpenapiDocumentRaw = openapiDocument
-      theOpenapiDocument.value = openapiDocument
-   })
+   if (theParams.value.object) {
+      setCollapsedItemObjectByTag(theParams.value.object as string, true)
+
+      setTimeout(() => {
+         scrollToTag(theParams.value.object as string)
+      }, 0)
+   }
 }
 
-async function setCollapsedItemObjectByTag(tag: string) {
+async function setCollapsedItemObjectByTag(tag: string, skipRouter?: boolean) {
    theCollapsedItemTag.value = tag
 
    let filteredPaths: OpenAPIV3.PathItemObject[] = []
@@ -126,8 +143,6 @@ async function setCollapsedItemObjectByTag(tag: string) {
       const paths = Object.keys(theOpenapiDocumentRaw.paths).map((obj) => {
          return theOpenapiDocumentRaw?.paths[obj]
       }) as OpenAPIV3.PathItemObject[]
-
-      console.log(paths)
 
       paths.forEach((path) => {
          if (path?.get && path.get.tags) {
@@ -165,7 +180,22 @@ async function setCollapsedItemObjectByTag(tag: string) {
 
       theCollapsedItems.value = filteredPaths
 
-      router.push({ name: 'page-details', params: { object: tag } })
+      if (!skipRouter) {
+         router.push({ name: 'page-details', params: { object: tag } })
+         // setTimeout(() => {
+         //    scrollToTag(tag)
+         // }, 500)
+      }
+   }
+}
+
+function scrollToTag(tag: string) {
+   const el = window.document.getElementById('Tag_' + tag)
+   if (el) {
+      const target = getScrollTarget(el)
+      const offset = el.offsetTop
+      const duration = 250
+      setVerticalScrollPosition(target, offset, duration)
    }
 }
 
@@ -181,6 +211,7 @@ provide('theOpenapiDocument', theOpenapiDocument)
 
 onMounted(() => {
    fetchOpenapiDocument()
+   theParams.value = route.params
 })
 </script>
 
