@@ -62,19 +62,20 @@
          </q-list>
       </q-drawer>
 
-      <q-page-container>
+      <q-page-container :key="theUID">
          <router-view />
       </q-page-container>
    </q-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, provide, computed } from 'vue'
+import { ref, onMounted, provide, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { scroll } from 'quasar'
+import { scroll, uid } from 'quasar'
 import { OpenAPIV3 } from 'openapi-types'
 
-import fileSpecJSON from 'G:/ezmax.api/appcluster01/specs/internal.json'
+// import fileSpecJSON from 'G:/ezmax.api/appcluster01/specs/internal.json'
+import axios from 'axios'
 
 const { getScrollTarget, setVerticalScrollPosition } = scroll
 
@@ -91,11 +92,13 @@ const router = useRouter()
 const route = useRoute()
 
 let theOpenapiDocumentRaw = {} as IEzmaxDocument
+
 const theOpenapiDocument = ref<IEzmaxDocument>()
 const theCollapsedItemTag = ref('')
 const theCollapsedItems = ref<OpenAPIV3.PathItemObject[]>([])
 const theSearch = ref('')
 const theParams = ref(route.params)
+const theUID = ref(uid())
 
 const isDrawerOpen = ref(false)
 
@@ -112,10 +115,10 @@ const theTagGroupsFiltered = computed(() => {
    return tagGroups
 })
 
-function fetchOpenapiDocument() {
-   const openapiDocument = fileSpecJSON as IEzmaxDocument
-   theOpenapiDocumentRaw = openapiDocument
-   theOpenapiDocument.value = openapiDocument
+async function fetchOpenapiDocument() {
+   const openapiDocument = await axios.get('../../../specs/internal.json')
+   theOpenapiDocumentRaw = openapiDocument.data
+   theOpenapiDocument.value = openapiDocument.data
 
    if (theParams.value.object) {
       setCollapsedItemObjectByTag(theParams.value.object as string, true)
@@ -213,6 +216,14 @@ onMounted(() => {
    fetchOpenapiDocument()
    theParams.value = route.params
 })
+
+watch(
+   () => route,
+   () => {
+      theUID.value = uid()
+   },
+   { deep: true }
+)
 </script>
 
 <style lang="scss">
