@@ -2,13 +2,11 @@
    <q-page padding>
       <div class="text-h5">{{ theOperation?.operation?.summary }}</div>
       <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
-      <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
          <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
          {{ theOperation?.route }}
          {{ theOperation?.route }}
          <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
       </div>
-      <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
       <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
          {{ theOperation.operation.description }}
       </div>
@@ -16,7 +14,6 @@
       <div v-if="theParameterTree && theParameterTree.length > 0">
          <div class="text-h6 text-uppercase">Path Parameters</div>
          <div class="text-body2">
-            <q-tree :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
             <q-tree :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                <template #default-header="prop">
                   <div class="row items-center">
@@ -41,7 +38,6 @@
          <div class="text-h6 text-uppercase">Request Body</div>
          <div class="text-body2">
             <q-tree :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-            <q-tree :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                <template #default-header="prop">
                   <div class="row items-center">
                      <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -65,7 +61,6 @@
       <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
          <div class="text-h6 text-uppercase">Responses</div>
          <div class="text-body2">
-            <q-tree :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
             <q-tree :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                <template #default-header="prop">
                   <div class="row items-center">
