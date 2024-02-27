@@ -63,18 +63,19 @@
       </q-drawer>
 
       <q-page-container>
-         <router-view />
+         <router-view :key="theUID" />
       </q-page-container>
    </q-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, provide, computed } from 'vue'
+import { ref, onMounted, provide, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { scroll } from 'quasar'
+import { scroll, uid } from 'quasar'
 import { OpenAPIV3 } from 'openapi-types'
 
-import fileSpecJSON from 'G:/ezmax.api/appcluster01/specs/internal.json'
+// import fileSpecJSON from 'G:/ezmax.api/appcluster01/specs/internal.json'
+import axios from 'axios'
 
 const { getScrollTarget, setVerticalScrollPosition } = scroll
 
@@ -90,12 +91,12 @@ type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 const router = useRouter()
 const route = useRoute()
 
-let theOpenapiDocumentRaw = {} as IEzmaxDocument
 const theOpenapiDocument = ref<IEzmaxDocument>()
 const theCollapsedItemTag = ref('')
 const theCollapsedItems = ref<OpenAPIV3.PathItemObject[]>([])
 const theSearch = ref('')
 const theParams = ref(route.params)
+const theUID = ref()
 
 const isDrawerOpen = ref(false)
 
@@ -112,10 +113,10 @@ const theTagGroupsFiltered = computed(() => {
    return tagGroups
 })
 
-function fetchOpenapiDocument() {
-   const openapiDocument = fileSpecJSON as IEzmaxDocument
-   theOpenapiDocumentRaw = openapiDocument
-   theOpenapiDocument.value = openapiDocument
+async function fetchOpenapiDocument() {
+   const openapiDocument = await axios.get('../../../specs/internal.json')
+   // const openapiDocument = fileSpecJSON
+   theOpenapiDocument.value = openapiDocument.data as IEzmaxDocument
 
    if (theParams.value.object) {
       setCollapsedItemObjectByTag(theParams.value.object as string, true)
@@ -139,9 +140,9 @@ async function setCollapsedItemObjectByTag(tag: string, skipRouter?: boolean) {
       delete: {} as { [key: string]: OpenAPIV3.PathItemObject }
    }
 
-   if (theOpenapiDocumentRaw) {
-      const paths = Object.keys(theOpenapiDocumentRaw.paths).map((obj) => {
-         return theOpenapiDocumentRaw?.paths[obj]
+   if (theOpenapiDocument.value) {
+      const paths = Object.keys(theOpenapiDocument.value.paths).map((obj) => {
+         return theOpenapiDocument.value?.paths[obj]
       }) as OpenAPIV3.PathItemObject[]
 
       paths.forEach((path) => {
@@ -207,12 +208,19 @@ function formatTag(tagName: string) {
    return tagName.replace('General_', '').replace('Object_', '').replace('Global_', '').replace('Module_', '')
 }
 
+theParams.value = route.params
+
+fetchOpenapiDocument()
+
 provide('theOpenapiDocument', theOpenapiDocument)
 
-onMounted(() => {
-   fetchOpenapiDocument()
-   theParams.value = route.params
-})
+watch(
+   () => route,
+   () => {
+      theUID.value = uid()
+   },
+   { deep: true }
+)
 </script>
 
 <style lang="scss">

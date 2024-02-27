@@ -7,17 +7,19 @@ interface IAdditionnalDocument {
    }[]
 }
 
-type openapiDocument = OpenAPIV3.Document & IAdditionnalDocument
+type TOpenapiDocument = OpenAPIV3.Document & IAdditionnalDocument
 
 class UOpenApi {
-   static findSchema(ref: string | undefined, openapiDocument: openapiDocument | undefined) {
+   static findSchema(ref: string | undefined, openapiDocument: TOpenapiDocument | undefined) {
       const schemaName = typeof ref === 'string' ? ref.split('/').pop() : undefined
-      if (schemaName && openapiDocument.components?.schemas[schemaName]) return openapiDocument.components?.schemas[schemaName]
-      if (schemaName && openapiDocument.components?.parameters[schemaName]) return openapiDocument.components?.parameters[schemaName]
+      if (openapiDocument) {
+         if (schemaName && openapiDocument.components?.schemas && openapiDocument.components?.schemas[schemaName]) return openapiDocument.components?.schemas[schemaName]
+         if (schemaName && openapiDocument.components?.parameters && openapiDocument.components?.parameters[schemaName]) return openapiDocument.components?.parameters[schemaName]
+      }
       return undefined
    }
 
-   static findRefs(object: any, openapiDocument: openapiDocument | undefined, counter?: number): any {
+   static findRefs(object: any, openapiDocument: TOpenapiDocument | undefined, counter?: number): any {
       const tryCounter = counter || 0
 
       if (tryCounter <= 10) {
@@ -50,9 +52,11 @@ class UOpenApi {
                object[key] = this.findRefs(value, openapiDocument, tryCounter + 1)
             }
          }
+
+         return object
       }
 
-      return object
+      return undefined
    }
 }
 

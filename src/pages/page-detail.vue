@@ -1,19 +1,19 @@
 <template>
    <q-page padding>
       <div class="text-h5">{{ theOperation?.operation?.summary }}</div>
-      <div v-if="theOperation.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
+      <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
          <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
-         {{ theOperation.route }}
+         {{ theOperation?.route }}
          <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
       </div>
-      <div v-if="theOperation.operation?.description" class="text-body2 q-mb-md">
+      <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
          {{ theOperation.operation.description }}
       </div>
 
-      <div v-if="theOperation.operation?.parameters">
+      <div v-if="theParameterTree && theParameterTree.length > 0">
          <div class="text-h6 text-uppercase">Path Parameters</div>
          <div class="text-body2">
-            <q-tree :nodes="getParameterTree()" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+            <q-tree :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                <template #default-header="prop">
                   <div class="row items-center">
                      <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -33,10 +33,10 @@
          </div>
       </div>
 
-      <div v-if="theOperation.operation?.requestBody">
+      <div v-if="theRequestTree && theRequestTree.length > 0">
          <div class="text-h6 text-uppercase">Request Body</div>
          <div class="text-body2">
-            <q-tree :nodes="getRequestTree()" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+            <q-tree :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                <template #default-header="prop">
                   <div class="row items-center">
                      <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -57,10 +57,10 @@
          </div>
       </div>
 
-      <div v-if="theOperation.operation?.responses" class="q-mt-md">
+      <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
          <div class="text-h6 text-uppercase">Responses</div>
          <div class="text-body2">
-            <q-tree :nodes="getResponseTree()" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+            <q-tree :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                <template #default-header="prop">
                   <div class="row items-center">
                      <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, inject, computed } from 'vue'
+import { ref, inject, Ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 // import { QTreeNode } from 'quasar'
@@ -105,11 +105,10 @@ type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 const route = useRoute()
 const quasar = useQuasar()
 
-const theOpenapiDocument = ref(inject('theOpenapiDocument') as IEzmaxDocument | undefined)
-const theParams = ref(route.params)
-// const theRequestTree = ref<QTreeNode[]>([])
+const theOpenapiDocument = inject('theOpenapiDocument') as Ref<IEzmaxDocument | undefined>
 
-const theOperation = computed(() => {
+// const theOperation = ref<{ method: string; route: string; operation?: OpenAPIV3.OperationObject }>()
+const theOperation = computed<{ method: string; route: string; operation?: OpenAPIV3.OperationObject }>(() => {
    if (theOpenapiDocument.value) {
       const paths = Object.keys(theOpenapiDocument.value.paths).map((obj) => {
          return {
@@ -120,11 +119,11 @@ const theOperation = computed(() => {
 
       const operation = paths.find((path) => {
          if (
-            (path.detail.get && path.detail.get.operationId == theParams.value.operation) ||
-            (path.detail.post && path.detail.post.operationId == theParams.value.operation) ||
-            (path.detail.put && path.detail.put.operationId == theParams.value.operation) ||
-            (path.detail.patch && path.detail.patch.operationId == theParams.value.operation) ||
-            (path.detail.delete && path.detail.delete.operationId == theParams.value.operation)
+            (path.detail.get && path.detail.get.operationId == route.params.operation) ||
+            (path.detail.post && path.detail.post.operationId == route.params.operation) ||
+            (path.detail.put && path.detail.put.operationId == route.params.operation) ||
+            (path.detail.patch && path.detail.patch.operationId == route.params.operation) ||
+            (path.detail.delete && path.detail.delete.operationId == route.params.operation)
          ) {
             return path
          } else {
@@ -138,55 +137,70 @@ const theOperation = computed(() => {
             route: operation.route,
             operation: operation.detail.get
          }
-      }
-      if (operation?.detail.post) {
+      } else if (operation?.detail.post) {
          return {
             method: 'post',
             route: operation.route,
             operation: operation.detail.post
          }
-      }
-      if (operation?.detail.put) {
+      } else if (operation?.detail.put) {
          return {
             method: 'put',
             route: operation.route,
             operation: operation.detail.put
          }
-      }
-      if (operation?.detail.patch) {
+      } else if (operation?.detail.patch) {
          return {
             method: 'patch',
             route: operation.route,
             operation: operation.detail.patch
          }
-      }
-      if (operation?.detail.delete) {
+      } else if (operation?.detail.delete) {
          return {
             method: 'delete',
             route: operation.route,
             operation: operation.detail.delete
          }
-      }
-
-      return {
-         route: '',
-         operation: undefined
+      } else {
+         return {
+            method: '',
+            route: '',
+            operation: undefined
+         }
       }
    } else {
       return {
+         method: '',
          route: '',
          operation: undefined
       }
    }
 })
 
-// function loadRequestTree() {
-//    const requestBody = theOperation.value.operation?.requestBody as any
-//    const applicationJsonSchema = UOpenApi.findRefs(requestBody?.content?.['application/json']?.schema, theOpenapiDocument.value)
-//    const ref = applicationJsonSchema?.$ref
+const theRequestTree = ref<any[]>([])
+const theResponseTree = ref<any[]>([])
+const theParameterTree = ref<any[]>([])
 
-//    theRequestTree.value = getTree(ref)
-// }
+function setRequestTree() {
+   theRequestTree.value = []
+   const openapiDocument = theOpenapiDocument.value
+   const requestBody = theOperation.value?.operation?.requestBody
+   theRequestTree.value = getRequestTree(requestBody, openapiDocument)
+}
+
+function setResponseTree() {
+   theResponseTree.value = []
+   const openapiDocument = theOpenapiDocument.value
+   const responses = theOperation.value?.operation?.responses
+   theResponseTree.value = getResponseTree(responses, openapiDocument)
+}
+
+function setParameterTree() {
+   theParameterTree.value = []
+   const openapiDocument = theOpenapiDocument.value
+   const parameters = theOperation.value?.operation?.parameters
+   theParameterTree.value = getParameterTree(parameters, openapiDocument)
+}
 
 function getTree(ref: any): any[] {
    let tree = []
@@ -222,17 +236,19 @@ function getTree(ref: any): any[] {
 
          children.sort((a, b) => customSort(a.label, b.label))
 
-         tree.push({
-            label: key,
-            children: children,
-            description: element.description,
-            maximum: element.maximum,
-            minimum: element.minimum,
-            type: element.type,
-            pattern: element.pattern,
-            enum: element.enum || [],
-            required: isRequired
-         })
+         if (element) {
+            tree.push({
+               label: key,
+               children: children,
+               description: element && Object.prototype.hasOwnProperty.call(element, 'description') ? element.description : '',
+               maximum: element.maximum,
+               minimum: element.minimum,
+               type: element.type,
+               pattern: element.pattern,
+               enum: element.enum || [],
+               required: isRequired
+            })
+         }
       }
    }
 
@@ -294,45 +310,42 @@ function getProperties(ref: any) {
    return properties
 }
 
-function getRequestTree() {
-   const requestBody = theOperation.value.operation?.requestBody as any
-   const applicationJsonSchema = UOpenApi.findRefs(requestBody?.content?.['application/json']?.schema, theOpenapiDocument.value)
+function getRequestTree(body: OpenAPIV3.ReferenceObject | OpenAPIV3.RequestBodyObject | undefined, openapiDocument: IEzmaxDocument | undefined) {
+   const requestBody = body as any
+   const applicationJsonSchema = UOpenApi.findRefs(requestBody?.content?.['application/json']?.schema, openapiDocument)
    const ref = applicationJsonSchema?.$ref
-   // console.log('request tree', getTree(ref))
    return getTree(ref)
 }
 
-function getResponseTree() {
+function getResponseTree(bodyResponses: OpenAPIV3.ResponsesObject | undefined, openapiDocument: IEzmaxDocument | undefined) {
    let tree = []
 
-   const responses = theOperation.value.operation?.responses as any
+   const responses = bodyResponses as any
 
    for (const key in responses) {
       const response = responses[key]
-      const applicationJsonSchema = UOpenApi.findRefs(response?.content?.['application/json']?.schema, theOpenapiDocument.value)
+      const applicationJsonSchema = UOpenApi.findRefs(response?.content?.['application/json']?.schema, openapiDocument)
       const ref = applicationJsonSchema?.$ref
+
+      const children = getTree(ref)
 
       tree.push({
          label: key,
-         children: getTree(ref)
+         children: children
       })
    }
-
-   // console.log('response tree', tree)
    return tree
 }
 
-function getParameterTree() {
+function getParameterTree(bodyParameters: any | undefined, openapiDocument: IEzmaxDocument | undefined) {
    let tree = []
 
-   const parameters = theOperation.value.operation?.parameters as any
+   const parameters = bodyParameters
 
    for (const key in parameters) {
       const parameter = parameters[key]
-      const applicationJsonSchema = UOpenApi.findRefs(parameter, theOpenapiDocument.value)
+      const applicationJsonSchema = UOpenApi.findRefs(parameter, openapiDocument)
       const ref = applicationJsonSchema?.$ref || applicationJsonSchema
-
-      console.log(ref)
 
       tree.push({
          label: ref?.name,
@@ -343,26 +356,109 @@ function getParameterTree() {
    return tree
 }
 
+// function fetchOperation(openapiDocument: IEzmaxDocument | undefined) {
+//    if (openapiDocument) {
+//       console.log(openapiDocument)
+//       const paths = Object.keys(openapiDocument.paths).map((obj) => {
+//          return {
+//             route: obj,
+//             detail: openapiDocument?.paths[obj]
+//          }
+//       }) as { route: string; detail: OpenAPIV3.PathItemObject }[]
+
+//       const operation = paths.find((path) => {
+//          if (
+//             (path.detail.get && path.detail.get.operationId == route.params.operation) ||
+//             (path.detail.post && path.detail.post.operationId == route.params.operation) ||
+//             (path.detail.put && path.detail.put.operationId == route.params.operation) ||
+//             (path.detail.patch && path.detail.patch.operationId == route.params.operation) ||
+//             (path.detail.delete && path.detail.delete.operationId == route.params.operation)
+//          ) {
+//             return path
+//          } else {
+//             return undefined
+//          }
+//       })
+
+//       if (operation?.detail.get) {
+//          theOperation.value = {
+//             method: 'get',
+//             route: operation.route,
+//             operation: operation.detail.get
+//          }
+//       } else if (operation?.detail.post) {
+//          theOperation.value = {
+//             method: 'post',
+//             route: operation.route,
+//             operation: operation.detail.post
+//          }
+//       } else if (operation?.detail.put) {
+//          theOperation.value = {
+//             method: 'put',
+//             route: operation.route,
+//             operation: operation.detail.put
+//          }
+//       } else if (operation?.detail.patch) {
+//          theOperation.value = {
+//             method: 'patch',
+//             route: operation.route,
+//             operation: operation.detail.patch
+//          }
+//       } else if (operation?.detail.delete) {
+//          theOperation.value = {
+//             method: 'delete',
+//             route: operation.route,
+//             operation: operation.detail.delete
+//          }
+//       } else {
+//          theOperation.value = {
+//             method: '',
+//             route: '',
+//             operation: undefined
+//          }
+//       }
+//    } else {
+//       theOperation.value = {
+//          method: '',
+//          route: '',
+//          operation: undefined
+//       }
+//    }
+//    console.log(2)
+// }
+
 function onCopy() {
-   navigator.clipboard.writeText(theOperation.value.route)
+   navigator.clipboard.writeText(theOperation.value?.route || 'undefined')
    quasar.notify({
       message: 'La route a été copié avec succès',
       color: 'positive'
    })
 }
 
+let loadTimeout: any
+
+async function load() {
+   if (loadTimeout) clearTimeout(loadTimeout)
+   loadTimeout = setTimeout(() => {
+      setRequestTree()
+      setResponseTree()
+      setParameterTree()
+   }, 100)
+}
+
+load()
+
 watch(
-   () => route.params,
+   () => theOperation.value,
    () => {
-      theParams.value = route.params
-      // loadRequestTree()
+      load()
    },
-   { deep: true }
+   {
+      deep: true
+   }
 )
 
-theParams.value = route.params
-
-// loadRequestTree()
+// load()
 </script>
 
 <style lang="scss">
