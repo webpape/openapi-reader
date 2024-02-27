@@ -22,29 +22,28 @@ class UOpenApi {
    static findRefs(object: any, openapiDocument: TOpenapiDocument | undefined, counter?: number): any {
       const tryCounter = counter || 0
 
-      if (tryCounter <= 10) {
-         if (Array.isArray(object)) {
-            // Vérifie si c'est un tableau
-            const newArray = [] as any[]
-            for (const item of object) {
-               newArray.push(this.findRefs(item, openapiDocument)) // Applique la récursion aux éléments du tableau
-            }
-            return newArray
+      if (Array.isArray(object)) {
+         // Vérifie si c'est un tableau
+         const newArray = [] as any[]
+         for (const item of object) {
+            newArray.push(this.findRefs(item, openapiDocument)) // Applique la récursion aux éléments du tableau
          }
+         return newArray
+      }
 
-         if (typeof object !== 'object' || object === null) {
-            return object
+      if (typeof object !== 'object' || object === null) {
+         return object
+      }
+
+      if ('$ref' in object) {
+         const ref = object.$ref
+         const schema = this.findSchema(ref, openapiDocument)
+
+         if (schema) {
+            object.$ref = schema
+            return this.findRefs(schema, openapiDocument, counter + 1)
          }
-
-         if ('$ref' in object) {
-            const ref = object.$ref
-            const schema = this.findSchema(ref, openapiDocument)
-
-            if (schema) {
-               object.$ref = schema
-               return this.findRefs(schema, openapiDocument, tryCounter + 1)
-            }
-         }
+      }
 
          for (const key in object) {
             if (object.hasOwnProperty(key)) {

@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, provide, computed, watch } from 'vue'
+import { ref, provide, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { scroll, uid } from 'quasar'
 import { OpenAPIV3 } from 'openapi-types'
