@@ -41,21 +41,18 @@ class UOpenApi {
 
          if (schema) {
             object.$ref = schema
-            return this.findRefs(schema, openapiDocument, counter + 1)
+            return this.findRefs(schema, openapiDocument, (counter || 0) + 1)
          }
       }
 
-         for (const key in object) {
-            if (object.hasOwnProperty(key)) {
-               const value = object[key]
-               object[key] = this.findRefs(value, openapiDocument, tryCounter + 1)
-            }
+      for (const key in object) {
+         if (object.hasOwnProperty(key)) {
+            const value = object[key]
+            object[key] = this.findRefs(value, openapiDocument, tryCounter + 1)
          }
-
-         return object
       }
 
-      return undefined
+      return object
    }
 }
 

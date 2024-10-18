@@ -1,86 +1,90 @@
 <template>
-   <q-page padding>
-      <div class="text-h5">{{ theOperation?.operation?.summary }}</div>
-      <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
-         <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
-         {{ theOperation?.route }}
-         {{ theOperation?.route }}
-         <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
-      </div>
-      <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
-         {{ theOperation.operation.description }}
-      </div>
-
-      <div v-if="theParameterTree && theParameterTree.length > 0">
-         <div class="text-h6 text-uppercase">Path Parameters</div>
-         <div class="text-body2">
-            <q-tree :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-               <template #default-header="prop">
-                  <div class="row items-center">
-                     <div style="font-family: Inconsolata" class="text-weight-bold">
-                        {{ prop.node.label }}
-                     </div>
-                     <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                  </div>
-                  <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                     <div>{{ prop.node.type }}</div>
-                  </div>
-               </template>
-               <template #default-body="prop">
-                  <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
-                  <div style="font-size: 12px; line-height: 16px" class="text-grey-7">{{ prop.node.description }}</div>
-               </template>
-            </q-tree>
+   <q-page class="page-full-height">
+      <q-scroll-area class="fit page-scroll-area">
+         <div class="text-h5 row items-center">
+            <div>{{ theOperation?.operation?.summary }}</div>
+            <q-chip v-if="theOperation.operation?.deprecated" color="negative" text-color="white" square outline class="q-ml-md text-weight-medium">Deprecated</q-chip>
          </div>
-      </div>
-
-      <div v-if="theRequestTree && theRequestTree.length > 0">
-         <div class="text-h6 text-uppercase">Request Body</div>
-         <div class="text-body2">
-            <q-tree :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-               <template #default-header="prop">
-                  <div class="row items-center">
-                     <div style="font-family: Inconsolata" class="text-weight-bold">
-                        {{ prop.node.label }}
-                     </div>
-                     <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                  </div>
-                  <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                     <div>{{ prop.node.type }}</div>
-                  </div>
-               </template>
-               <template #default-body="prop">
-                  <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
-                     <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
-                  </div>
-               </template>
-            </q-tree>
+         <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
+            <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
+            {{ theOperation?.route }}
+            <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
          </div>
-      </div>
-
-      <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
-         <div class="text-h6 text-uppercase">Responses</div>
-         <div class="text-body2">
-            <q-tree :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-               <template #default-header="prop">
-                  <div class="row items-center">
-                     <div style="font-family: Inconsolata" class="text-weight-bold">
-                        {{ prop.node.label }}
-                     </div>
-                     <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                  </div>
-                  <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                     <div>{{ prop.node.type }}</div>
-                  </div>
-               </template>
-               <template #default-body="prop">
-                  <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
-                     <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
-                  </div>
-               </template>
-            </q-tree>
+         <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
+            {{ theOperation.operation.description }}
          </div>
-      </div>
+
+         <div v-if="theParameterTree && theParameterTree.length > 0">
+            <div class="text-h6 text-uppercase">Path Parameters</div>
+            <div class="text-body2">
+               <q-tree :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                  <template #default-header="prop">
+                     <div class="row items-center">
+                        <div style="font-family: Inconsolata" class="text-weight-bold">
+                           {{ prop.node.label }}
+                        </div>
+                        <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
+                     </div>
+                     <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                        <div>{{ prop.node.type }}</div>
+                     </div>
+                  </template>
+                  <template #default-body="prop">
+                     <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
+                     <div style="font-size: 12px; line-height: 16px" class="text-grey-7">{{ prop.node.description }}</div>
+                  </template>
+               </q-tree>
+            </div>
+         </div>
+
+         <div v-if="theRequestTree && theRequestTree.length > 0">
+            <div class="text-h6 text-uppercase">Request Body</div>
+            <div class="text-body2">
+               <q-tree :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                  <template #default-header="prop">
+                     <div class="row items-center">
+                        <div style="font-family: Inconsolata" class="text-weight-bold">
+                           {{ prop.node.label }}
+                        </div>
+                        <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
+                     </div>
+                     <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                        <div>{{ prop.node.type }}</div>
+                     </div>
+                  </template>
+                  <template #default-body="prop">
+                     <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
+                        <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
+                     </div>
+                  </template>
+               </q-tree>
+            </div>
+         </div>
+
+         <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
+            <div class="text-h6 text-uppercase">Responses</div>
+            <div class="text-body2">
+               <q-tree :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                  <template #default-header="prop">
+                     <div class="row items-center">
+                        <div style="font-family: Inconsolata" class="text-weight-bold">
+                           {{ prop.node.label }}
+                        </div>
+                        <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
+                     </div>
+                     <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                        <div>{{ prop.node.type }}</div>
+                     </div>
+                  </template>
+                  <template #default-body="prop">
+                     <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
+                        <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
+                     </div>
+                  </template>
+               </q-tree>
+            </div>
+         </div>
+      </q-scroll-area>
 
       <!-- <pre v-if="theOperation" style="font-size: 10px; line-height: 12px">{{ theOperation }}</pre> -->
    </q-page>
@@ -132,31 +136,31 @@ const theOperation = computed<{ method: string; route: string; operation?: OpenA
          }
       })
 
-      if (operation?.detail.get) {
+      if (operation?.detail.get && operation.detail.get.operationId == route.params.operation) {
          return {
             method: 'get',
             route: operation.route,
             operation: operation.detail.get
          }
-      } else if (operation?.detail.post) {
+      } else if (operation?.detail.post && operation.detail.post.operationId == route.params.operation) {
          return {
             method: 'post',
             route: operation.route,
             operation: operation.detail.post
          }
-      } else if (operation?.detail.put) {
+      } else if (operation?.detail.put && operation.detail.put.operationId == route.params.operation) {
          return {
             method: 'put',
             route: operation.route,
             operation: operation.detail.put
          }
-      } else if (operation?.detail.patch) {
+      } else if (operation?.detail.patch && operation.detail.patch.operationId == route.params.operation) {
          return {
             method: 'patch',
             route: operation.route,
             operation: operation.detail.patch
          }
-      } else if (operation?.detail.delete) {
+      } else if (operation?.detail.delete && operation.detail.delete.operationId == route.params.operation) {
          return {
             method: 'delete',
             route: operation.route,

@@ -1,1 +1,7 @@
 // app global css in SCSS form
+.page-full-height {
+   height: calc(100vh - 50px) !important;
+}
+.page-scroll-area {
+   padding: 24px 24px 24px 24px;
+}
