@@ -15,9 +15,12 @@
          </div>
 
          <div v-if="theParameterTree && theParameterTree.length > 0">
-            <div class="text-h6 text-uppercase">Path Parameters</div>
+            <div class="text-h6 text-uppercase">
+               Path Parameters
+               <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.path ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('path')"></q-btn>
+            </div>
             <div class="text-body2">
-               <q-tree :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+               <q-tree ref="thePathTreeRef" :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                   <template #default-header="prop">
                      <div class="row items-center">
                         <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -38,9 +41,12 @@
          </div>
 
          <div v-if="theRequestTree && theRequestTree.length > 0">
-            <div class="text-h6 text-uppercase">Request Body</div>
+            <div class="text-h6 text-uppercase">
+               Request Body
+               <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.request ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('request')"></q-btn>
+            </div>
             <div class="text-body2">
-               <q-tree :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+               <q-tree ref="theRequestTreeRef" :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                   <template #default-header="prop">
                      <div class="row items-center">
                         <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -53,18 +59,22 @@
                      </div>
                   </template>
                   <template #default-body="prop">
-                     <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
+                     <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row q-ml-sm">
                         <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
                      </div>
+                     <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
                   </template>
                </q-tree>
             </div>
          </div>
 
          <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
-            <div class="text-h6 text-uppercase">Responses</div>
+            <div class="text-h6 text-uppercase">
+               Responses
+               <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.response ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('response')"></q-btn>
+            </div>
             <div class="text-body2">
-               <q-tree :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+               <q-tree ref="theResponseTreeRef" :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                   <template #default-header="prop">
                      <div class="row items-center">
                         <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -80,6 +90,7 @@
                      <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
                         <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
                      </div>
+                     <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
                   </template>
                </q-tree>
             </div>
@@ -91,12 +102,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, inject, Ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { ref, inject, Ref, computed, watch, reactive } from 'vue'
+import { useQuasar, QTree } from 'quasar'
 import { useRoute } from 'vue-router'
 // import { QTreeNode } from 'quasar'
 import { OpenAPIV3 } from 'openapi-types'
 import { UOpenApi } from 'src/utils/openapi'
+import { useGlobalStore } from 'src/stores/global'
+import { marked } from 'marked'
 
 interface IAdditionnalDocument {
    'x-tagGroups': {
@@ -109,8 +122,23 @@ type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 
 const route = useRoute()
 const quasar = useQuasar()
+const storeGlobal = useGlobalStore()
 
 const theOpenapiDocument = inject('theOpenapiDocument') as Ref<IEzmaxDocument | undefined>
+
+const theRequestTree = ref<any[]>([])
+const theResponseTree = ref<any[]>([])
+const theParameterTree = ref<any[]>([])
+
+const thePathTreeRef = ref<QTree>()
+const theRequestTreeRef = ref<QTree>()
+const theResponseTreeRef = ref<QTree>()
+
+const theExpandCollapseTree = reactive({
+   path: true,
+   request: true,
+   response: true
+})
 
 // const theOperation = ref<{ method: string; route: string; operation?: OpenAPIV3.OperationObject }>()
 const theOperation = computed<{ method: string; route: string; operation?: OpenAPIV3.OperationObject }>(() => {
@@ -181,10 +209,6 @@ const theOperation = computed<{ method: string; route: string; operation?: OpenA
       }
    }
 })
-
-const theRequestTree = ref<any[]>([])
-const theResponseTree = ref<any[]>([])
-const theParameterTree = ref<any[]>([])
 
 function setRequestTree() {
    theRequestTree.value = []
@@ -361,77 +385,6 @@ function getParameterTree(bodyParameters: any | undefined, openapiDocument: IEzm
    return tree
 }
 
-// function fetchOperation(openapiDocument: IEzmaxDocument | undefined) {
-//    if (openapiDocument) {
-//       console.log(openapiDocument)
-//       const paths = Object.keys(openapiDocument.paths).map((obj) => {
-//          return {
-//             route: obj,
-//             detail: openapiDocument?.paths[obj]
-//          }
-//       }) as { route: string; detail: OpenAPIV3.PathItemObject }[]
-
-//       const operation = paths.find((path) => {
-//          if (
-//             (path.detail.get && path.detail.get.operationId == route.params.operation) ||
-//             (path.detail.post && path.detail.post.operationId == route.params.operation) ||
-//             (path.detail.put && path.detail.put.operationId == route.params.operation) ||
-//             (path.detail.patch && path.detail.patch.operationId == route.params.operation) ||
-//             (path.detail.delete && path.detail.delete.operationId == route.params.operation)
-//          ) {
-//             return path
-//          } else {
-//             return undefined
-//          }
-//       })
-
-//       if (operation?.detail.get) {
-//          theOperation.value = {
-//             method: 'get',
-//             route: operation.route,
-//             operation: operation.detail.get
-//          }
-//       } else if (operation?.detail.post) {
-//          theOperation.value = {
-//             method: 'post',
-//             route: operation.route,
-//             operation: operation.detail.post
-//          }
-//       } else if (operation?.detail.put) {
-//          theOperation.value = {
-//             method: 'put',
-//             route: operation.route,
-//             operation: operation.detail.put
-//          }
-//       } else if (operation?.detail.patch) {
-//          theOperation.value = {
-//             method: 'patch',
-//             route: operation.route,
-//             operation: operation.detail.patch
-//          }
-//       } else if (operation?.detail.delete) {
-//          theOperation.value = {
-//             method: 'delete',
-//             route: operation.route,
-//             operation: operation.detail.delete
-//          }
-//       } else {
-//          theOperation.value = {
-//             method: '',
-//             route: '',
-//             operation: undefined
-//          }
-//       }
-//    } else {
-//       theOperation.value = {
-//          method: '',
-//          route: '',
-//          operation: undefined
-//       }
-//    }
-//    console.log(2)
-// }
-
 function onCopy() {
    navigator.clipboard.writeText(theOperation.value?.route || 'undefined')
    navigator.clipboard.writeText(theOperation.value?.route || 'undefined')
@@ -439,6 +392,26 @@ function onCopy() {
       message: 'La route a été copié avec succès',
       color: 'positive'
    })
+}
+
+function onExpandCollapseTree(treeName: 'path' | 'request' | 'response') {
+   switch (treeName) {
+      case 'path':
+         theExpandCollapseTree.path = !theExpandCollapseTree.path
+         if (theExpandCollapseTree.path) thePathTreeRef.value?.expandAll()
+         else thePathTreeRef.value?.collapseAll()
+         break
+      case 'request':
+         theExpandCollapseTree.request = !theExpandCollapseTree.request
+         if (theExpandCollapseTree.request) theRequestTreeRef.value?.expandAll()
+         else theRequestTreeRef.value?.collapseAll()
+         break
+      case 'response':
+         theExpandCollapseTree.response = !theExpandCollapseTree.response
+         if (theExpandCollapseTree.response) theResponseTreeRef.value?.expandAll()
+         else theResponseTreeRef.value?.collapseAll()
+         break
+   }
 }
 
 let loadTimeout: any

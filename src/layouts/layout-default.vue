@@ -6,6 +6,16 @@
 
             <q-toolbar-title class="text-uppercase" style="font-size: 12px">{{ theOpenapiDocument?.info.title }}</q-toolbar-title>
 
+            <q-btn round flat color="white" icon="settings" class="q-mr-sm">
+               <q-popup-proxy style="width: 300px">
+                  <q-card>
+                     <q-card-section>
+                        <div class="text-h6">Configuration</div>
+                        <q-toggle size="xs" v-model="storeGlobal.showDescription">Show Descriptions</q-toggle>
+                     </q-card-section>
+                  </q-card>
+               </q-popup-proxy>
+            </q-btn>
             <div v-if="theOpenapiDocument?.info.version">v{{ theOpenapiDocument.info.version }}</div>
          </q-toolbar>
       </q-header>
@@ -82,6 +92,7 @@ import { OpenAPIV3 } from 'openapi-types'
 
 // import fileSpecJSON from 'G:/ezmax.api/appcluster01/specs/internal.json'
 import axios from 'axios'
+import { useGlobalStore } from 'src/stores/global'
 
 const { getScrollTarget, setVerticalScrollPosition } = scroll
 
@@ -96,6 +107,7 @@ type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 
 const router = useRouter()
 const route = useRoute()
+const storeGlobal = useGlobalStore()
 
 let theInitialDrawerWidth: number
 

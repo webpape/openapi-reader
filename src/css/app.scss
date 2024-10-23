@@ -5,3 +5,24 @@
 .page-scroll-area {
    padding: 24px 24px 24px 24px;
 }
+.tree-description {
+   font-size: 12px;
+   line-height: 16px;
+   table {
+      border: solid 1px #ccc;
+      border-collapse: collapse;
+      padding: 0px;
+      td,
+      th {
+         padding: 2px 4px;
+         border-top: solid 1px #ccc;
+         border-left: solid 1px #ccc;
+         &:last-child {
+            border-right: solid 1px #ccc;
+         }
+      }
+   }
+   p {
+      margin: 0px 0px 4px 0px;
+   }
+}
