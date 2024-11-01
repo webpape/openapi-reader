@@ -89,6 +89,7 @@ import { ref, provide, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { scroll, uid } from 'quasar'
 import { OpenAPIV3 } from 'openapi-types'
+import hljs from 'highlight.js'
 
 // import fileSpecJSON from 'G:/ezmax.api/appcluster01/specs/internal.json'
 import axios from 'axios'
@@ -249,6 +250,12 @@ watch(
    },
    { deep: true }
 )
+
+document.addEventListener('DOMContentLoaded', () => {
+   document.querySelectorAll('pre code').forEach((el: any) => {
+      hljs.highlightElement(el)
+   })
+})
 </script>
 
 <style lang="scss">

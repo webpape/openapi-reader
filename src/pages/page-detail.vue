@@ -1,100 +1,109 @@
 <template>
    <q-page class="page-full-height">
       <q-scroll-area class="fit page-scroll-area">
-         <div class="text-h5 row items-center">
-            <div>{{ theOperation?.operation?.summary }}</div>
-            <q-chip v-if="theOperation.operation?.deprecated" color="negative" text-color="white" square outline class="q-ml-md text-weight-medium">Deprecated</q-chip>
-         </div>
-         <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
-            <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
-            {{ theOperation?.route }}
-            <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
-         </div>
-         <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
-            {{ theOperation.operation.description }}
-         </div>
+         <template v-if="thePage && !theOperation?.operation">
+            <div class="text-h5 row items-center">
+               <div v-if="thePage['x-displayName']">{{ thePage['x-displayName'] }}</div>
+            </div>
+            <div class="page-markdown-content" v-html="marked.parse(thePage.description)"></div>
+         </template>
 
-         <div v-if="theParameterTree && theParameterTree.length > 0">
-            <div class="text-h6 text-uppercase">
-               Path Parameters
-               <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.path ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('path')"></q-btn>
+         <template v-else>
+            <div class="text-h5 row items-center">
+               <div>{{ theOperation?.operation?.summary }}</div>
+               <q-chip v-if="theOperation.operation?.deprecated" color="negative" text-color="white" square outline class="q-ml-md text-weight-medium">Deprecated</q-chip>
             </div>
-            <div class="text-body2">
-               <q-tree ref="thePathTreeRef" :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                  <template #default-header="prop">
-                     <div class="row items-center">
-                        <div style="font-family: Inconsolata" class="text-weight-bold">
-                           {{ prop.node.label }}
-                        </div>
-                        <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                     </div>
-                     <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                        <div>{{ prop.node.type }}</div>
-                     </div>
-                  </template>
-                  <template #default-body="prop">
-                     <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
-                     <div style="font-size: 12px; line-height: 16px" class="text-grey-7">{{ prop.node.description }}</div>
-                  </template>
-               </q-tree>
+            <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
+               <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
+               {{ theOperation?.route }}
+               <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
             </div>
-         </div>
+            <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
+               {{ theOperation.operation.description }}
+            </div>
 
-         <div v-if="theRequestTree && theRequestTree.length > 0">
-            <div class="text-h6 text-uppercase">
-               Request Body
-               <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.request ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('request')"></q-btn>
-            </div>
-            <div class="text-body2">
-               <q-tree ref="theRequestTreeRef" :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                  <template #default-header="prop">
-                     <div class="row items-center">
-                        <div style="font-family: Inconsolata" class="text-weight-bold">
-                           {{ prop.node.label }}
+            <div v-if="theParameterTree && theParameterTree.length > 0">
+               <div class="text-h6 text-uppercase">
+                  Path Parameters
+                  <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.path ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('path')"></q-btn>
+               </div>
+               <div class="text-body2">
+                  <q-tree ref="thePathTreeRef" :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                     <template #default-header="prop">
+                        <div class="row items-center">
+                           <div style="font-family: Inconsolata" class="text-weight-bold">
+                              {{ prop.node.label }}
+                           </div>
+                           <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
                         </div>
-                        <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                     </div>
-                     <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                        <div>{{ prop.node.type }}</div>
-                     </div>
-                  </template>
-                  <template #default-body="prop">
-                     <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row q-ml-sm">
-                        <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
-                     </div>
-                     <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
-                  </template>
-               </q-tree>
+                        <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                           <div>{{ prop.node.type }}</div>
+                        </div>
+                     </template>
+                     <template #default-body="prop">
+                        <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
+                        <div style="font-size: 12px; line-height: 16px" class="text-grey-7">{{ prop.node.description }}</div>
+                     </template>
+                  </q-tree>
+               </div>
             </div>
-         </div>
 
-         <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
-            <div class="text-h6 text-uppercase">
-               Responses
-               <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.response ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('response')"></q-btn>
-            </div>
-            <div class="text-body2">
-               <q-tree ref="theResponseTreeRef" :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                  <template #default-header="prop">
-                     <div class="row items-center">
-                        <div style="font-family: Inconsolata" class="text-weight-bold">
-                           {{ prop.node.label }}
+            <div v-if="theRequestTree && theRequestTree.length > 0">
+               <div class="text-h6 text-uppercase">
+                  Request Body
+                  <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.request ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('request')"></q-btn>
+               </div>
+               <div class="text-body2">
+                  <q-tree ref="theRequestTreeRef" :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                     <template #default-header="prop">
+                        <div class="row items-center">
+                           <div style="font-family: Inconsolata" class="text-weight-bold">
+                              {{ prop.node.label }}
+                           </div>
+                           <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
                         </div>
-                        <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                     </div>
-                     <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                        <div>{{ prop.node.type }}</div>
-                     </div>
-                  </template>
-                  <template #default-body="prop">
-                     <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
-                        <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
-                     </div>
-                     <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
-                  </template>
-               </q-tree>
+                        <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                           <div>{{ prop.node.type }}</div>
+                        </div>
+                     </template>
+                     <template #default-body="prop">
+                        <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row q-ml-sm">
+                           <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
+                        </div>
+                        <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
+                     </template>
+                  </q-tree>
+               </div>
             </div>
-         </div>
+
+            <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
+               <div class="text-h6 text-uppercase">
+                  Responses
+                  <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.response ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('response')"></q-btn>
+               </div>
+               <div class="text-body2">
+                  <q-tree ref="theResponseTreeRef" :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                     <template #default-header="prop">
+                        <div class="row items-center">
+                           <div style="font-family: Inconsolata" class="text-weight-bold">
+                              {{ prop.node.label }}
+                           </div>
+                           <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
+                        </div>
+                        <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
+                           <div>{{ prop.node.type }}</div>
+                        </div>
+                     </template>
+                     <template #default-body="prop">
+                        <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
+                           <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
+                        </div>
+                        <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
+                     </template>
+                  </q-tree>
+               </div>
+            </div>
+         </template>
       </q-scroll-area>
 
       <!-- <pre v-if="theOperation" style="font-size: 10px; line-height: 12px">{{ theOperation }}</pre> -->
@@ -118,7 +127,13 @@ interface IAdditionnalDocument {
    }[]
 }
 
+interface IAdditionnalTag {
+   'x-displayName': string
+   description: string
+}
+
 type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
+type IEzmaxTag = OpenAPIV3.TagObject & IAdditionnalTag
 
 const route = useRoute()
 const quasar = useQuasar()
@@ -138,6 +153,15 @@ const theExpandCollapseTree = reactive({
    path: true,
    request: true,
    response: true
+})
+
+const thePage = computed<IEzmaxTag | undefined>(() => {
+   if (theOpenapiDocument.value) {
+      const page = theOpenapiDocument.value.tags?.find((tag) => tag.name == route.params.object) as IEzmaxTag
+      return page
+   } else {
+      return undefined
+   }
 })
 
 // const theOperation = ref<{ method: string; route: string; operation?: OpenAPIV3.OperationObject }>()
