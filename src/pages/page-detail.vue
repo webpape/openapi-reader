@@ -36,9 +36,9 @@
                            </div>
                            <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
                         </div>
-                        <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                           <div>{{ prop.node.type }}</div>
-                        </div>
+                        <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
+                        <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
+                        <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
                      </template>
                      <template #default-body="prop">
                         <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
@@ -62,9 +62,10 @@
                            </div>
                            <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
                         </div>
-                        <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                           <div>{{ prop.node.type }}</div>
-                        </div>
+                        <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
+                        <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
+                        <x-badge-minimum-maximum :minimum="prop.node.minimum" :maximum="prop.node.maximum"></x-badge-minimum-maximum>
+                        <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
                      </template>
                      <template #default-body="prop">
                         <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row q-ml-sm">
@@ -90,9 +91,10 @@
                            </div>
                            <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
                         </div>
-                        <div style="font-family: Inconsolata; font-size: 12px" class="row text-light-blue-10 q-ml-sm">
-                           <div>{{ prop.node.type }}</div>
-                        </div>
+                        <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
+                        <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
+                        <x-badge-minimum-maximum :minimum="prop.node.minimum" :maximum="prop.node.maximum"></x-badge-minimum-maximum>
+                        <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
                      </template>
                      <template #default-body="prop">
                         <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
@@ -106,7 +108,7 @@
          </template>
       </q-scroll-area>
 
-      <!-- <pre v-if="theOperation" style="font-size: 10px; line-height: 12px">{{ theOperation }}</pre> -->
+      <!-- <pre style="font-size: 10px; line-height: 12px">{{ theOpenapiDocument }}</pre> -->
    </q-page>
 </template>
 
@@ -119,6 +121,11 @@ import { OpenAPIV3 } from 'openapi-types'
 import { UOpenApi } from 'src/utils/openapi'
 import { useGlobalStore } from 'src/stores/global'
 import { marked } from 'marked'
+
+import XBadgeLength from 'src/components/badge-length'
+import XBadgeMinimumMaximum from 'src/components/badge-minimum-maximum'
+import XBadgeObjectType from 'src/components/badge-object-type'
+import XBadgePattern from 'src/components/badge-pattern'
 
 interface IAdditionnalDocument {
    'x-tagGroups': {
@@ -298,6 +305,8 @@ function getTree(ref: any): any[] {
                minimum: element.minimum,
                type: element.type,
                pattern: element.pattern,
+               minLength: element.minLength,
+               maxLength: element.maxLength,
                enum: element.enum || [],
                required: isRequired
             })

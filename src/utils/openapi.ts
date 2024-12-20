@@ -19,6 +19,11 @@ class UOpenApi {
       return undefined
    }
 
+   static findSchemaName(ref: string | undefined) {
+      const schemaName = typeof ref === 'string' ? ref.split('/').pop() : undefined
+      return schemaName
+   }
+
    static findRefs(object: any, openapiDocument: TOpenapiDocument | undefined, counter?: number): any {
       const tryCounter = counter || 0
 
@@ -38,9 +43,11 @@ class UOpenApi {
       if ('$ref' in object) {
          const ref = object.$ref
          const schema = this.findSchema(ref, openapiDocument)
+         const schemaName = this.findSchemaName(ref)
 
          if (schema) {
             object.$ref = schema
+            object.$refName = schemaName
             return this.findRefs(schema, openapiDocument, (counter || 0) + 1)
          }
       }

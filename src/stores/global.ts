@@ -2,7 +2,8 @@ import { defineStore } from 'pinia'
 
 export const useGlobalStore = defineStore('global', {
    state: () => ({
-      showDescription: false
+      showDescription: false,
+      showDeprecated: false
    }),
    getters: {},
    actions: {},

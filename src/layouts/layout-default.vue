@@ -12,6 +12,7 @@
                      <q-card-section>
                         <div class="text-h6">Configuration</div>
                         <q-toggle size="xs" v-model="storeGlobal.showDescription">Show Descriptions</q-toggle>
+                        <q-toggle size="xs" v-model="storeGlobal.showDeprecated">Show Deprecated</q-toggle>
                      </q-card-section>
                   </q-card>
                </q-popup-proxy>
@@ -47,23 +48,23 @@
                            </template>
                            <q-list dense v-if="tag == theCollapsedItemTag && theCollapsedItems && theCollapsedItems.length > 0">
                               <template v-for="collapsedItem in theCollapsedItems" :key="collapsedItem.description">
-                                 <q-item v-show="collapsedItem.get" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.get?.operationId } }">
+                                 <q-item v-show="collapsedItem.get && showMenuItem(collapsedItem.get?.deprecated)" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.get?.operationId } }">
                                     <q-item-section label style="max-width: 40px"><q-btn class="or-btn-chip" unelevated dense size="xs" color="green-9" text-color="white" square label="GET" style="max-width: 60px" /></q-item-section>
                                     <q-item-section :class="collapsedItem.get?.deprecated ? 'text-strike grey-6' : ''">{{ collapsedItem.get?.summary }}</q-item-section>
                                  </q-item>
-                                 <q-item v-show="collapsedItem.post" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.post?.operationId } }">
+                                 <q-item v-show="collapsedItem.post && showMenuItem(collapsedItem.post?.deprecated)" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.post?.operationId } }">
                                     <q-item-section label style="max-width: 40px"><q-btn class="or-btn-chip" unelevated dense size="xs" color="blue-9" text-color="white" square label="POST" style="max-width: 60px" /></q-item-section>
                                     <q-item-section :class="collapsedItem.post?.deprecated ? 'text-strike grey-6' : ''">{{ collapsedItem.post?.summary }}</q-item-section>
                                  </q-item>
-                                 <q-item v-show="collapsedItem.put" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.put?.operationId } }">
+                                 <q-item v-show="collapsedItem.put && showMenuItem(collapsedItem.put?.deprecated)" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.put?.operationId } }">
                                     <q-item-section label style="max-width: 40px"><q-btn class="or-btn-chip" unelevated dense size="xs" color="purple-8" text-color="white" square label="PUT" style="max-width: 60px" /></q-item-section>
                                     <q-item-section :class="collapsedItem.put?.deprecated ? 'text-strike grey-6' : ''">{{ collapsedItem.put?.summary }}</q-item-section>
                                  </q-item>
-                                 <q-item v-show="collapsedItem.patch" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.patch?.operationId } }">
+                                 <q-item v-show="collapsedItem.patch && showMenuItem(collapsedItem.patch?.deprecated)" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.patch?.operationId } }">
                                     <q-item-section label style="max-width: 40px"><q-btn class="or-btn-chip" unelevated dense size="xs" color="orange-10" text-color="white" square label="PATCH" style="max-width: 60px" /></q-item-section>
                                     <q-item-section :class="collapsedItem.patch?.deprecated ? 'text-strike grey-6' : ''">{{ collapsedItem.patch?.summary }}</q-item-section>
                                  </q-item>
-                                 <q-item v-show="collapsedItem.delete" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.delete?.operationId } }">
+                                 <q-item v-show="collapsedItem.delete && showMenuItem(collapsedItem.delete?.deprecated)" class="or-item" clickable :to="{ name: 'page-details', params: { object: tag, operation: collapsedItem.delete?.operationId } }">
                                     <q-item-section label style="max-width: 40px"><q-btn class="or-btn-chip" unelevated dense size="xs" color="red-10" text-color="white" square label="DELETE" style="max-width: 60px" /></q-item-section>
                                     <q-item-section :class="collapsedItem.delete?.deprecated ? 'text-strike grey-6' : ''">{{ collapsedItem.delete?.summary }}</q-item-section>
                                  </q-item>
@@ -86,6 +87,7 @@
 
 <script setup lang="ts">
 import { ref, provide, computed, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRouter, useRoute } from 'vue-router'
 import { scroll, uid } from 'quasar'
 import { OpenAPIV3 } from 'openapi-types'
@@ -109,6 +111,7 @@ type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 const router = useRouter()
 const route = useRoute()
 const storeGlobal = useGlobalStore()
+const $q = useQuasar()
 
 let theInitialDrawerWidth: number
 
@@ -235,6 +238,14 @@ function resizeDrawer(ev: any) {
       theInitialDrawerWidth = theDrawerWidth.value
    }
    theDrawerWidth.value = theInitialDrawerWidth + ev.offset.x
+}
+
+function showMenuItem(isDeprecated?: boolean) {
+   if (storeGlobal.showDeprecated) {
+      return true
+   } else {
+      return !isDeprecated ? true : false
+   }
 }
 
 theParams.value = route.params
