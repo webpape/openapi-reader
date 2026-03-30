@@ -13,6 +13,7 @@
                         <div class="text-h6">Configuration</div>
                         <q-toggle size="xs" v-model="storeGlobal.showDescription">Show Descriptions</q-toggle>
                         <q-toggle size="xs" v-model="storeGlobal.showDeprecated">Show Deprecated</q-toggle>
+                        <q-toggle size="xs" v-model="storeGlobal.showPermission">Expand permissions</q-toggle>
                      </q-card-section>
                   </q-card>
                </q-popup-proxy>

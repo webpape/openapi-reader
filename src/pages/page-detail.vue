@@ -18,6 +18,28 @@
                {{ theOperation?.route }}
                <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
             </div>
+            <q-expansion-item
+               v-if="thePermissions.length > 0"
+               v-model="storeGlobal.showPermission"
+               dense
+               class="rounded-borders q-mb-sm q-pr-none overflow-hidden"
+               header-class="bg-grey-3"
+               expand-icon-class="text-grey-7"
+               icon="vpn_key"
+               :label="'Liste des permissions (' + thePermissions.length + ')'"
+               style="max-width: 600px"
+            >
+               <template #header>
+                  <div class="row items-center full-width">
+                     <q-icon name="vpn_key" size="20px" color="grey-5  " class="q-mr-sm" />
+                     <span class="text-body2 text-weight-medium">Liste des permissions ({{ thePermissions.length }})</span>
+                  </div>
+               </template>
+               <q-card flat square class="bg-grey-2 q-pa-sm" style="padding-left: 38px">
+                  <div v-for="perm in thePermissions" :key="perm" class="text-body2 text-grey-9 q-px-sm" style="font-family: monospace; font-size: 12px; line-height: 1.6">{{ perm }}</div>
+               </q-card>
+            </q-expansion-item>
+
             <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
                {{ theOperation.operation.description }}
             </div>
@@ -42,7 +64,7 @@
                      </template>
                      <template #default-body="prop">
                         <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
-                        <div style="font-size: 12px; line-height: 16px" class="text-grey-7">{{ prop.node.description }}</div>
+                        <div style="font-size: 12px; line-height: 16px" class="text-grey-">{{ prop.node.description }}</div>
                      </template>
                   </q-tree>
                </div>
@@ -142,6 +164,8 @@ interface IAdditionnalTag {
 type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 type IEzmaxTag = OpenAPIV3.TagObject & IAdditionnalTag
 
+type IOperationWithPermissions = OpenAPIV3.OperationObject & { 'x-permissions'?: string[] }
+
 const route = useRoute()
 const quasar = useQuasar()
 const storeGlobal = useGlobalStore()
@@ -239,6 +263,12 @@ const theOperation = computed<{ method: string; route: string; operation?: OpenA
          operation: undefined
       }
    }
+})
+
+const thePermissions = computed(() => {
+   const op = theOperation.value?.operation as IOperationWithPermissions | undefined
+   const raw = op?.['x-permissions']
+   return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : []
 })
 
 function setRequestTree() {
