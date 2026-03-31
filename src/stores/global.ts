@@ -4,8 +4,8 @@ export const useGlobalStore = defineStore('global', {
    state: () => ({
       showDescription: false,
       showDeprecated: false,
-      /** Globally expanded permissions list (detail pages, persisted in session) */
-      showPermission: false
+      /** Globally expanded properties list (detail pages, persisted in session) */
+      showProperties: false
    }),
    getters: {},
    actions: {},

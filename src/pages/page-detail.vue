@@ -12,120 +12,142 @@
             <div class="text-h5 row items-center">
                <div>{{ theOperation?.operation?.summary }}</div>
                <q-chip v-if="theOperation.operation?.deprecated" color="negative" text-color="white" square outline class="q-ml-md text-weight-medium">Deprecated</q-chip>
+               <template v-for="prop in theXPropertiesBoolean" :key="prop.key">
+                  <q-chip :color="prop.color" text-color="white" dense square class="text-weight-bold q-ml-sm" size="12px">
+                     {{ prop.label }}
+                  </q-chip>
+               </template>
             </div>
             <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
                <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
                {{ theOperation?.route }}
                <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
             </div>
+
+            <div v-if="theOperation?.operation?.description" class="q-mb-md">
+               <q-card flat class="bg-grey-2 q-px-md q-pb-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
+                  <div class="page-markdown-content" v-html="marked.parse(theOperation.operation.description)">
+                  </div>
+               </q-card>
+            </div>
+
             <q-expansion-item
-               v-if="thePermissions.length > 0"
-               v-model="storeGlobal.showPermission"
+               v-if="theXPropertiesArray.length > 0"
+               v-model="storeGlobal.showProperties"
                dense
-               class="rounded-borders q-mb-sm q-pr-none overflow-hidden"
+               class="rounded-borders q-mb-md overflow-hidden border-grey-3"
                header-class="bg-grey-3"
                expand-icon-class="text-grey-7"
-               icon="vpn_key"
-               :label="'Liste des permissions (' + thePermissions.length + ')'"
-               style="max-width: 600px"
+               style="border: 1px solid #e0e0e0"
             >
                <template #header>
                   <div class="row items-center full-width">
-                     <q-icon name="vpn_key" size="20px" color="grey-5  " class="q-mr-sm" />
-                     <span class="text-body2 text-weight-medium">Liste des permissions ({{ thePermissions.length }})</span>
+                     <span class="text-body2 text-weight-medium">Advanced properties</span>
                   </div>
                </template>
-               <q-card flat square class="bg-grey-2 q-pa-sm" style="padding-left: 38px">
-                  <div v-for="perm in thePermissions" :key="perm" class="text-body2 text-grey-9 q-px-sm" style="font-family: monospace; font-size: 12px; line-height: 1.6">{{ perm }}</div>
+               <q-card flat square class="bg-grey-1 q-pa-md">
+                  <div class="row q-col-gutter-md">
+                     <!-- Arrays -->
+                     <div v-for="prop in theXPropertiesArray" :key="prop.key" class="col-xs-12 col-sm-6 col-md-4 col-lg-3">
+                        <div class="text-weight-bold q-mb-xs text-grey-8" style="font-size: 12px">{{ prop.label }} ({{ prop.value.length }})</div>
+                        <div class="bg-white q-pa-sm rounded-borders border-grey-2" style="border: 1px solid #eeeeee">
+                           <div v-for="item in prop.value" :key="item" class="text-body2 text-grey-9 q-px-sm" style="font-family: monospace; font-size: 12px; line-height: 1.6">
+                              {{ item }}
+                           </div>
+                        </div>
+                     </div>
+                  </div>
                </q-card>
             </q-expansion-item>
 
-            <div v-if="theOperation?.operation?.description" class="text-body2 q-mb-md">
-               {{ theOperation.operation.description }}
+            <div v-if="theParameterTree && theParameterTree.length > 0" class="q-mb-md">
+               <q-card flat class="bg-grey-2 q-pa-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
+                  <div class="text-h6 text-uppercase q-px-sm">
+                     Path Parameters
+                     <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.path ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('path')"></q-btn>
+                  </div>
+                  <div class="text-body2">
+                     <q-tree ref="thePathTreeRef" :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                        <template #default-header="prop">
+                           <div class="row items-center">
+                              <div style="font-family: Inconsolata" class="text-weight-bold">
+                                 {{ prop.node.label }}
+                              </div>
+                              <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
+                           </div>
+                           <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
+                           <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
+                           <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
+                        </template>
+                        <template #default-body="prop">
+                           <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
+                           <div style="font-size: 12px; line-height: 16px" class="text-grey-">{{ prop.node.description }}</div>
+                        </template>
+                     </q-tree>
+                  </div>
+               </q-card>
             </div>
 
-            <div v-if="theParameterTree && theParameterTree.length > 0">
-               <div class="text-h6 text-uppercase">
-                  Path Parameters
-                  <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.path ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('path')"></q-btn>
-               </div>
-               <div class="text-body2">
-                  <q-tree ref="thePathTreeRef" :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                     <template #default-header="prop">
-                        <div class="row items-center">
-                           <div style="font-family: Inconsolata" class="text-weight-bold">
-                              {{ prop.node.label }}
+            <div v-if="theRequestTree && theRequestTree.length > 0" class="q-mb-md">
+               <q-card flat class="bg-grey-2 q-pa-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
+                  <div class="text-h6 text-uppercase q-px-sm">
+                     Request Body
+                     <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.request ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('request')"></q-btn>
+                  </div>
+                  <div class="text-body2">
+                     <q-tree ref="theRequestTreeRef" :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                        <template #default-header="prop">
+                           <div class="row items-center">
+                              <div style="font-family: Inconsolata" class="text-weight-bold">
+                                 {{ prop.node.label }}
+                              </div>
+                              <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
                            </div>
-                           <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                        </div>
-                        <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
-                        <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
-                        <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
-                     </template>
-                     <template #default-body="prop">
-                        <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
-                        <div style="font-size: 12px; line-height: 16px" class="text-grey-">{{ prop.node.description }}</div>
-                     </template>
-                  </q-tree>
-               </div>
-            </div>
-
-            <div v-if="theRequestTree && theRequestTree.length > 0">
-               <div class="text-h6 text-uppercase">
-                  Request Body
-                  <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.request ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('request')"></q-btn>
-               </div>
-               <div class="text-body2">
-                  <q-tree ref="theRequestTreeRef" :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                     <template #default-header="prop">
-                        <div class="row items-center">
-                           <div style="font-family: Inconsolata" class="text-weight-bold">
-                              {{ prop.node.label }}
+                           <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
+                           <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
+                           <x-badge-minimum-maximum :minimum="prop.node.minimum" :maximum="prop.node.maximum"></x-badge-minimum-maximum>
+                           <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
+                        </template>
+                        <template #default-body="prop">
+                           <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row q-ml-sm">
+                              <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
                            </div>
-                           <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                        </div>
-                        <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
-                        <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
-                        <x-badge-minimum-maximum :minimum="prop.node.minimum" :maximum="prop.node.maximum"></x-badge-minimum-maximum>
-                        <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
-                     </template>
-                     <template #default-body="prop">
-                        <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row q-ml-sm">
-                           <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
-                        </div>
-                        <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
-                     </template>
-                  </q-tree>
-               </div>
+                           <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
+                        </template>
+                     </q-tree>
+                  </div>
+               </q-card>
             </div>
 
             <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
-               <div class="text-h6 text-uppercase">
-                  Responses
-                  <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.response ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('response')"></q-btn>
-               </div>
-               <div class="text-body2">
-                  <q-tree ref="theResponseTreeRef" :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                     <template #default-header="prop">
-                        <div class="row items-center">
-                           <div style="font-family: Inconsolata" class="text-weight-bold">
-                              {{ prop.node.label }}
+               <q-card flat class="bg-grey-2 q-pa-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
+                  <div class="text-h6 text-uppercase q-px-sm">
+                     Responses
+                     <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.response ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('response')"></q-btn>
+                  </div>
+                  <div class="text-body2">
+                     <q-tree ref="theResponseTreeRef" :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                        <template #default-header="prop">
+                           <div class="row items-center">
+                              <div style="font-family: Inconsolata" class="text-weight-bold">
+                                 {{ prop.node.label }}
+                              </div>
+                              <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
                            </div>
-                           <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                        </div>
-                        <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
-                        <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
-                        <x-badge-minimum-maximum :minimum="prop.node.minimum" :maximum="prop.node.maximum"></x-badge-minimum-maximum>
-                        <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
-                     </template>
-                     <template #default-body="prop">
-                        <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
-                           <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
-                        </div>
-                        <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
-                     </template>
-                  </q-tree>
-               </div>
+                           <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
+                           <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
+                           <x-badge-minimum-maximum :minimum="prop.node.minimum" :maximum="prop.node.maximum"></x-badge-minimum-maximum>
+                           <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
+                        </template>
+                        <template #default-body="prop">
+                           <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
+                              <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
+                           </div>
+                           <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
+                        </template>
+                     </q-tree>
+                  </div>
+               </q-card>
             </div>
          </template>
       </q-scroll-area>
@@ -163,8 +185,6 @@ interface IAdditionnalTag {
 
 type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
 type IEzmaxTag = OpenAPIV3.TagObject & IAdditionnalTag
-
-type IOperationWithPermissions = OpenAPIV3.OperationObject & { 'x-permissions'?: string[] }
 
 const route = useRoute()
 const quasar = useQuasar()
@@ -265,10 +285,50 @@ const theOperation = computed<{ method: string; route: string; operation?: OpenA
    }
 })
 
-const thePermissions = computed(() => {
-   const op = theOperation.value?.operation as IOperationWithPermissions | undefined
-   const raw = op?.['x-permissions']
-   return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : []
+const theXPropertiesBoolean = computed(() => {
+   const op = theOperation.value?.operation as any
+   if (!op) return []
+
+   const xProps: { key: string; label: string; value: any; color: string }[] = []
+   const colorMap: Record<string, string> = {
+      'POWERAUTOMATE': 'blue-8',
+      'INTERNAL': 'indigo-9',
+      'SUPERADMIN': 'pink-9'
+      // Ajoutez d'autres couleurs ici si nécessaire
+   }
+
+   for (const key in op) {
+      if (key.startsWith('x-')) {
+         const value = op[key]
+         const label = key.replace('x-', '').toUpperCase()
+         if (typeof value === 'boolean' && value === true) {
+            xProps.push({ 
+               key, 
+               label, 
+               value,
+               color: colorMap[label] || 'primary'
+            })
+         }
+      }
+   }
+   return xProps.sort((a, b) => a.label.localeCompare(b.label))
+})
+
+const theXPropertiesArray = computed(() => {
+   const op = theOperation.value?.operation as any
+   if (!op) return []
+
+   const xProps: { key: string; label: string; value: any }[] = []
+   for (const key in op) {
+      if (key.startsWith('x-')) {
+         const value = op[key]
+         const label = key.replace('x-', '').toUpperCase()
+         if (Array.isArray(value) && value.length > 0) {
+            xProps.push({ key, label, value })
+         }
+      }
+   }
+   return xProps.sort((a, b) => a.label.localeCompare(b.label))
 })
 
 function setRequestTree() {
