@@ -6,10 +6,11 @@
    "author": "Patrick Perron <webpape@gmail.com>",
    "private": true,
    "scripts": {
+      "import": "mkdir -p specs && cp ../ezmax.api/appcluster01/specs/internal.json specs/internal.json && echo 'Importation de internal.json réussie.'",
       "lint": "eslint --ext .js,.ts,.vue ./",
       "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
       "test": "echo \"No test specified\" && exit 0",
-      "dev": "quasar dev",
+      "dev": "yarn import && quasar dev",
       "build": "quasar build",
       "build:ezmax": "quasar build && cp -r G:/openapi-reader/dist/spa G:/ezmax.api/appcluster01/api-reader/dist",
       "serve": "serve dist/spa/"

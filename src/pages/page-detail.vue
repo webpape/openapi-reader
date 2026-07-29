@@ -19,27 +19,18 @@
                </template>
             </div>
             <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
-               <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" square :label="theOperation.method" style="width: 60px" />
+               <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" :label="theOperation.method" style="width: 60px" />
                {{ theOperation?.route }}
                <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
             </div>
 
             <div v-if="theOperation?.operation?.description" class="q-mb-md">
                <q-card flat class="bg-grey-2 q-px-md q-pb-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
-                  <div class="page-markdown-content" v-html="marked.parse(theOperation.operation.description)">
-                  </div>
+                  <div class="page-markdown-content" v-html="marked.parse(theOperation.operation.description)"></div>
                </q-card>
             </div>
 
-            <q-expansion-item
-               v-if="theXPropertiesArray.length > 0"
-               v-model="storeGlobal.showProperties"
-               dense
-               class="rounded-borders q-mb-md overflow-hidden border-grey-3"
-               header-class="bg-grey-3"
-               expand-icon-class="text-grey-7"
-               style="border: 1px solid #e0e0e0"
-            >
+            <q-expansion-item v-if="theXPropertiesArray.length > 0" v-model="storeGlobal.showProperties" dense class="rounded-borders q-mb-md overflow-hidden border-grey-3" header-class="bg-grey-3" expand-icon-class="text-grey-7" style="border: 1px solid #e0e0e0">
                <template #header>
                   <div class="row items-center full-width">
                      <span class="text-body2 text-weight-medium">Advanced properties</span>
@@ -90,12 +81,18 @@
 
             <div v-if="theRequestTree && theRequestTree.length > 0" class="q-mb-md">
                <q-card flat class="bg-grey-2 q-pa-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
-                  <div class="text-h6 text-uppercase q-px-sm">
-                     Request Body
+                  <div class="text-h6 text-uppercase q-px-sm row items-center">
+                     <span>Request Body</span>
                      <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.request ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('request')"></q-btn>
+                     <q-input v-model="filterRequest" dense rounded outlined bg-color="white" placeholder="filter..." class="q-ml-md filter-input">
+                        <template #append>
+                           <q-icon v-if="filterRequest" name="clear" class="cursor-pointer" size="xs" @click="filterRequest = ''" />
+                           <q-icon v-else name="search" size="xs" />
+                        </template>
+                     </q-input>
                   </div>
                   <div class="text-body2">
-                     <q-tree ref="theRequestTreeRef" :nodes="theRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                     <q-tree ref="theRequestTreeRef" :nodes="filteredRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                         <template #default-header="prop">
                            <div class="row items-center">
                               <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -121,12 +118,18 @@
 
             <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
                <q-card flat class="bg-grey-2 q-pa-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
-                  <div class="text-h6 text-uppercase q-px-sm">
-                     Responses
+                  <div class="text-h6 text-uppercase q-px-sm row items-center">
+                     <span>Responses</span>
                      <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.response ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('response')"></q-btn>
+                     <q-input v-model="filterResponse" dense rounded outlined bg-color="white" placeholder="filter..." class="q-ml-md filter-input">
+                        <template #append>
+                           <q-icon v-if="filterResponse" name="clear" class="cursor-pointer" size="xs" @click="filterResponse = ''" />
+                           <q-icon v-else name="search" size="xs" />
+                        </template>
+                     </q-input>
                   </div>
                   <div class="text-body2">
-                     <q-tree ref="theResponseTreeRef" :nodes="theResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
+                     <q-tree ref="theResponseTreeRef" :nodes="filteredResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
                         <template #default-header="prop">
                            <div class="row items-center">
                               <div style="font-family: Inconsolata" class="text-weight-bold">
@@ -199,6 +202,57 @@ const theParameterTree = ref<any[]>([])
 const thePathTreeRef = ref<QTree>()
 const theRequestTreeRef = ref<QTree>()
 const theResponseTreeRef = ref<QTree>()
+
+const filterRequest = ref('')
+const filterResponse = ref('')
+
+const checkNodeMatch = (node: any, needle: string): { labelMatch: boolean; anyMatch: boolean } => {
+   const labelMatch = Boolean(node.label && node.label.toLowerCase().includes(needle))
+   const typeMatch = Boolean(node.type && node.type.toLowerCase().includes(needle))
+   const descMatch = Boolean(node.description && node.description.toLowerCase().includes(needle))
+   return {
+      labelMatch,
+      anyMatch: labelMatch || typeMatch || descMatch
+   }
+}
+
+const filterNodes = (nodes: any[], needle: string, parentMatched = false): any[] => {
+   if (!needle) return nodes
+   const result: any[] = []
+
+   for (const node of nodes) {
+      const { labelMatch, anyMatch } = checkNodeMatch(node, needle)
+      // Un enfant conserve ses sous-éléments uniquement si un ancêtre avait un label correspondant (ex: objEzsignfolder)
+      const isMatchedByParentLabel = parentMatched || labelMatch
+      const isMatched = parentMatched || anyMatch
+
+      let filteredChildren: any[] = []
+      if (node.children && node.children.length > 0) {
+         filteredChildren = filterNodes(node.children, needle, isMatchedByParentLabel)
+      }
+
+      if (isMatched || filteredChildren.length > 0) {
+         result.push({
+            ...node,
+            children: isMatchedByParentLabel ? node.children : filteredChildren
+         })
+      }
+   }
+
+   return result
+}
+
+const filteredRequestTree = computed(() => {
+   const needle = filterRequest.value.trim().toLowerCase()
+   if (!needle) return theRequestTree.value
+   return filterNodes(theRequestTree.value, needle)
+})
+
+const filteredResponseTree = computed(() => {
+   const needle = filterResponse.value.trim().toLowerCase()
+   if (!needle) return theResponseTree.value
+   return filterNodes(theResponseTree.value, needle)
+})
 
 const theExpandCollapseTree = reactive({
    path: true,
@@ -291,9 +345,9 @@ const theXPropertiesBoolean = computed(() => {
 
    const xProps: { key: string; label: string; value: any; color: string }[] = []
    const colorMap: Record<string, string> = {
-      'POWERAUTOMATE': 'blue-8',
-      'INTERNAL': 'indigo-9',
-      'SUPERADMIN': 'pink-9'
+      POWERAUTOMATE: 'blue-8',
+      INTERNAL: 'indigo-9',
+      SUPERADMIN: 'pink-9'
       // Ajoutez d'autres couleurs ici si nécessaire
    }
 
@@ -302,9 +356,9 @@ const theXPropertiesBoolean = computed(() => {
          const value = op[key]
          const label = key.replace('x-', '').toUpperCase()
          if (typeof value === 'boolean' && value === true) {
-            xProps.push({ 
-               key, 
-               label, 
+            xProps.push({
+               key,
+               label,
                value,
                color: colorMap[label] || 'primary'
             })
@@ -581,5 +635,31 @@ watch(
 }
 .method_delete {
    background: $red-10;
+}
+
+.filter-input {
+   width: 140px;
+   font-size: 11px;
+   text-transform: none !important;
+   .q-field__control {
+      height: 26px !important;
+      min-height: 26px !important;
+      padding: 0 8px;
+      &:before {
+         border-color: #d0d0d0;
+      }
+      &:after {
+         border-color: #757575 !important;
+         border-width: 1px !important;
+      }
+   }
+   .q-field__marginal {
+      height: 26px !important;
+   }
+   input {
+      padding: 0;
+      font-size: 12px;
+      text-transform: none !important;
+   }
 }
 </style>
