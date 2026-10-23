@@ -1,6 +1,23 @@
 {
-  "extends": "@quasar/app-vite/tsconfig-preset",
-  "compilerOptions": {
-    "baseUrl": "."
-  }
+   "compilerOptions": {
+      "target": "ES2022",
+      "useDefineForClassFields": true,
+      "module": "ESNext",
+      "moduleResolution": "bundler",
+      "strict": true,
+      "jsx": "preserve",
+      "resolveJsonModule": true,
+      "isolatedModules": true,
+      "esModuleInterop": true,
+      "lib": ["ES2022", "DOM", "DOM.Iterable"],
+      "skipLibCheck": true,
+      "noEmit": true,
+      "baseUrl": ".",
+      "paths": {
+         "src/*": ["src/*"],
+         "pinia-plugin-persistedstate": ["node_modules/pinia-plugin-persistedstate/dist/index.d.ts"]
+      },
+      "types": ["vite/client", "node"]
+   },
+   "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.d.ts", "vite.config.ts"]
 }

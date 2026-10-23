@@ -1,41 +1,25 @@
-# Openapi Reader (openapi-reader)
+# OpenAPI Reader
 
-The best reader for Openapi
+Lecteur OpenAPI en Vue 3, Vite et PrimeVue.
 
-## Install the dependencies
+## Démarrage
+
 ```bash
 yarn
-# or
-npm install
+yarn dev
 ```
 
-### Start the app in development mode (hot-code reloading, error reporting, etc.)
+`yarn import` copie `internal.json` depuis le dépôt API local quand il est disponible. Sinon, le fichier déjà présent dans `specs/` est conservé.
+
+## Build
+
 ```bash
-quasar dev
+yarn build
+yarn preview
 ```
 
+La sortie est le dossier `dist`. La spec interne est servie depuis `/specs/internal.json`.
 
-### Lint the files
-```bash
-yarn lint
-# or
-npm run lint
-```
+## Specs
 
-
-### Format the files
-```bash
-yarn format
-# or
-npm run format
-```
-
-
-
-### Build the app for production
-```bash
-quasar build
-```
-
-### Customize the configuration
-See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).
+L'en-tête charge `internal.json` localement, ou une spec OpenAPI publiée dans [eZmax-API/specs](https://github.com/eZmaxinc/eZmax-API/tree/master/specs). Les collections Postman et les fichiers de plus de 8 Mo ne sont pas rendus.

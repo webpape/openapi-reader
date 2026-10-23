@@ -1,665 +1,258 @@
 <template>
-   <q-page class="page-full-height">
-      <q-scroll-area class="fit page-scroll-area">
-         <template v-if="thePage && !theOperation?.operation">
-            <div class="text-h5 row items-center">
-               <div v-if="thePage['x-displayName']">{{ thePage['x-displayName'] }}</div>
+   <article v-if="current?.operation" class="page detail-page" :class="{ 'samples-closed': !store.samplesOpen, 'samples-overlay': store.samplesOpen && store.samplesOverlay }">
+      <div class="detail-main">
+         <header class="page-header">
+            <div class="title-block">
+               <div class="title-line">
+                  <h2>{{ current.operation.summary || current.operation.operationId }}</h2>
+                  <Tag v-if="current.operation.deprecated" severity="danger" value="Deprecated" />
+                  <Tag v-for="flag in extensions.flags" :key="flag.key" :severity="flagSeverity(flag.label)" :value="flag.label" />
+                  <Tag v-for="text in extensions.texts" :key="text.key" severity="secondary" :value="text.label + ': ' + text.value" />
+               </div>
+               <p v-if="current.operation.operationId" class="operation-id">{{ current.operation.operationId }}</p>
             </div>
-            <div class="page-markdown-content" v-html="marked.parse(thePage.description)"></div>
-         </template>
-
-         <template v-else>
-            <div class="text-h5 row items-center">
-               <div>{{ theOperation?.operation?.summary }}</div>
-               <q-chip v-if="theOperation.operation?.deprecated" color="negative" text-color="white" square outline class="q-ml-md text-weight-medium">Deprecated</q-chip>
-               <template v-for="prop in theXPropertiesBoolean" :key="prop.key">
-                  <q-chip :color="prop.color" text-color="white" dense square class="text-weight-bold q-ml-sm" size="12px">
-                     {{ prop.label }}
-                  </q-chip>
-               </template>
+            <div class="header-actions">
+               <Button label="Copy for LLM" icon="pi pi-copy" size="small" text severity="secondary" class="llm-copy" @click="copyLlm" />
+               <Button v-if="current.operation.externalDocs?.url" :label="current.operation.externalDocs.description || 'Docs'" icon="pi pi-external-link" size="small" text severity="secondary" as="a" :href="current.operation.externalDocs.url" target="_blank" rel="noreferrer" />
             </div>
-            <div v-if="theOperation?.method" class="q-pa-sm q-my-md bg-grey-3 rounded-borders" style="font-family: monospace">
-               <q-btn class="or-btn-chip" :class="'method_' + theOperation.method" unelevated dense size="sm" text-color="white" :label="theOperation.method" style="width: 60px" />
-               {{ theOperation?.route }}
-               <q-btn flat square padding="4px 8px" icon="content_copy" size="sm" color="grey-7" class="float-right" @click="onCopy"></q-btn>
+         </header>
+
+         <div v-if="security.length" class="security-row">
+            <span v-for="option in security" :key="option.label" class="auth-chip"><i class="pi pi-lock"></i>{{ option.label }}</span>
+         </div>
+
+         <div class="path-bar">
+            <span class="method" :class="'m-' + current.method">{{ current.method }}</span>
+            <code>{{ current.route }}</code>
+            <Button class="copy-btn" icon="pi pi-copy" text rounded size="small" aria-label="Copy path" @click="copyPath" />
+         </div>
+
+         <XMarkdown v-if="current.operation.description" :source="current.operation.description" />
+
+         <section v-if="extensions.lists.length" class="section-card">
+            <div class="section-head">
+               <button type="button" class="fold" :aria-expanded="advancedOpen" @click="advancedOpen = !advancedOpen">
+                  <span class="caret-disc"><span class="caret" :class="{ open: advancedOpen }"></span></span>
+                  <span>Advanced properties</span>
+               </button>
             </div>
-
-            <div v-if="theOperation?.operation?.description" class="q-mb-md">
-               <q-card flat class="bg-grey-2 q-px-md q-pb-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
-                  <div class="page-markdown-content" v-html="marked.parse(theOperation.operation.description)"></div>
-               </q-card>
+            <div v-show="advancedOpen" class="advanced-grid">
+               <article v-for="list in extensions.lists" :key="list.key">
+                  <h3>{{ list.label }} ({{ list.value.length }})</h3>
+                  <ul>
+                     <li v-for="item in list.value" :key="item">{{ item }}</li>
+                  </ul>
+               </article>
             </div>
+         </section>
 
-            <q-expansion-item v-if="theXPropertiesArray.length > 0" v-model="storeGlobal.showProperties" dense class="rounded-borders q-mb-md overflow-hidden border-grey-3" header-class="bg-grey-3" expand-icon-class="text-grey-7" style="border: 1px solid #e0e0e0">
-               <template #header>
-                  <div class="row items-center full-width">
-                     <span class="text-body2 text-weight-medium">Advanced properties</span>
-                  </div>
-               </template>
-               <q-card flat square class="bg-grey-1 q-pa-md">
-                  <div class="row q-col-gutter-md">
-                     <!-- Arrays -->
-                     <div v-for="prop in theXPropertiesArray" :key="prop.key" class="col-xs-12 col-sm-6 col-md-4 col-lg-3">
-                        <div class="text-weight-bold q-mb-xs text-grey-8" style="font-size: 12px">{{ prop.label }} ({{ prop.value.length }})</div>
-                        <div class="bg-white q-pa-sm rounded-borders border-grey-2" style="border: 1px solid #eeeeee">
-                           <div v-for="item in prop.value" :key="item" class="text-body2 text-grey-9 q-px-sm" style="font-family: monospace; font-size: 12px; line-height: 1.6">
-                              {{ item }}
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </q-card>
-            </q-expansion-item>
-
-            <div v-if="theParameterTree && theParameterTree.length > 0" class="q-mb-md">
-               <q-card flat class="bg-grey-2 q-pa-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
-                  <div class="text-h6 text-uppercase q-px-sm">
-                     Path Parameters
-                     <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.path ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('path')"></q-btn>
-                  </div>
-                  <div class="text-body2">
-                     <q-tree ref="thePathTreeRef" :nodes="theParameterTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                        <template #default-header="prop">
-                           <div class="row items-center">
-                              <div style="font-family: Inconsolata" class="text-weight-bold">
-                                 {{ prop.node.label }}
-                              </div>
-                              <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                           </div>
-                           <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
-                           <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
-                           <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
-                        </template>
-                        <template #default-body="prop">
-                           <div v-if="prop.node.enum" style="font-size: 12px; line-height: 16px" class="text-grey-8">ENUM : {{ prop.node.enum.toString().replaceAll(',', ', ') }}</div>
-                           <div style="font-size: 12px; line-height: 16px" class="text-grey-">{{ prop.node.description }}</div>
-                        </template>
-                     </q-tree>
-                  </div>
-               </q-card>
+         <section v-for="section in parameterBlocks" :key="section.in" class="section-card">
+            <div class="section-head">
+               <button type="button" class="fold" :aria-expanded="expanded.path" @click="toggleExpand('path')">
+                  <span class="caret-disc"><span class="caret" :class="{ open: expanded.path }"></span></span>
+                  <span>{{ section.title }}</span>
+               </button>
             </div>
+            <XSchemaTree :nodes="section.nodes" :expanded="expanded.path" :expand-token="tokens.path" />
+         </section>
 
-            <div v-if="theRequestTree && theRequestTree.length > 0" class="q-mb-md">
-               <q-card flat class="bg-grey-2 q-pa-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
-                  <div class="text-h6 text-uppercase q-px-sm row items-center">
-                     <span>Request Body</span>
-                     <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.request ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('request')"></q-btn>
-                     <q-input v-model="filterRequest" dense rounded outlined bg-color="white" placeholder="filter..." class="q-ml-md filter-input">
-                        <template #append>
-                           <q-icon v-if="filterRequest" name="clear" class="cursor-pointer" size="xs" @click="filterRequest = ''" />
-                           <q-icon v-else name="search" size="xs" />
-                        </template>
-                     </q-input>
-                  </div>
-                  <div class="text-body2">
-                     <q-tree ref="theRequestTreeRef" :nodes="filteredRequestTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                        <template #default-header="prop">
-                           <div class="row items-center">
-                              <div style="font-family: Inconsolata" class="text-weight-bold">
-                                 {{ prop.node.label }}
-                              </div>
-                              <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                           </div>
-                           <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
-                           <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
-                           <x-badge-minimum-maximum :minimum="prop.node.minimum" :maximum="prop.node.maximum"></x-badge-minimum-maximum>
-                           <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
-                        </template>
-                        <template #default-body="prop">
-                           <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row q-ml-sm">
-                              <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
-                           </div>
-                           <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
-                        </template>
-                     </q-tree>
-                  </div>
-               </q-card>
+         <section v-if="request" class="section-card">
+            <div class="section-head">
+               <button type="button" class="fold" :aria-expanded="expanded.request" @click="toggleExpand('request')">
+                  <span class="caret-disc"><span class="caret" :class="{ open: expanded.request }"></span></span>
+                  <span>Request body <small v-if="request.required">required</small></span>
+               </button>
+               <button v-if="store.showObjectNames && request.schemaName" type="button" class="schema-anchor" @click="openSchema(request.schemaName)">{{ request.schemaName }}</button>
+               <span v-else-if="store.showObjectNames && request.typeLabel" class="schema-anchor plain">{{ request.typeLabel }}</span>
+               <Select v-if="request.contentTypes.length > 1" :model-value="contentType || request.contentType" :options="request.contentTypes" class="content-select" @update:model-value="contentType = $event" />
+               <IconField class="filter-field">
+                  <InputIcon class="pi pi-search" />
+                  <InputText v-model="filterRequest" placeholder="Filter" size="small" />
+                  <button v-if="filterRequest" type="button" class="search-clear" aria-label="Clear filter" @click="filterRequest = ''">
+                     <i class="pi pi-times"></i>
+                  </button>
+               </IconField>
             </div>
+            <p v-if="request.description" class="section-note">{{ request.description }}</p>
+            <p v-if="request.stream" class="section-note">Stream of items (itemSchema).</p>
+            <XSchemaTree :nodes="filteredRequest" :expanded="expanded.request" :expand-token="tokens.request" />
+         </section>
 
-            <div v-if="theResponseTree && theResponseTree.length > 0" class="q-mt-md">
-               <q-card flat class="bg-grey-2 q-pa-sm rounded-borders border-grey-3" style="border: 1px solid #e0e0e0">
-                  <div class="text-h6 text-uppercase q-px-sm row items-center">
-                     <span>Responses</span>
-                     <q-btn flat round size="sm" dense color="secondary" :icon="theExpandCollapseTree.response ? 'unfold_less' : 'unfold_more'" class="q-ml-sm" @click="() => onExpandCollapseTree('response')"></q-btn>
-                     <q-input v-model="filterResponse" dense rounded outlined bg-color="white" placeholder="filter..." class="q-ml-md filter-input">
-                        <template #append>
-                           <q-icon v-if="filterResponse" name="clear" class="cursor-pointer" size="xs" @click="filterResponse = ''" />
-                           <q-icon v-else name="search" size="xs" />
-                        </template>
-                     </q-input>
-                  </div>
-                  <div class="text-body2">
-                     <q-tree ref="theResponseTreeRef" :nodes="filteredResponseTree" icon="keyboard_arrow_right" node-key="label" default-expand-all dense>
-                        <template #default-header="prop">
-                           <div class="row items-center">
-                              <div style="font-family: Inconsolata" class="text-weight-bold">
-                                 {{ prop.node.label }}
-                              </div>
-                              <q-icon v-if="prop.node.required" size="10px" color="negative" name="emergency" style="margin-top: -2px; margin-left: 2px"></q-icon>
-                           </div>
-                           <x-badge-object-type :type="prop.node.type"></x-badge-object-type>
-                           <x-badge-length :min-length="prop.node.minlength" :max-length="prop.node.maxLength"></x-badge-length>
-                           <x-badge-minimum-maximum :minimum="prop.node.minimum" :maximum="prop.node.maximum"></x-badge-minimum-maximum>
-                           <x-badge-pattern v-if="prop.node.pattern" :pattern="prop.node.pattern"></x-badge-pattern>
-                        </template>
-                        <template #default-body="prop">
-                           <div v-if="prop.node.enum && prop.node.enum.length > 0" style="font-family: monospace" class="items-center row">
-                              <q-chip v-for="stringEnum in prop.node.enum" :key="stringEnum" size="12px" dense square text-color="grey-9" style="font-family: monospace; padding: 2px 8px">"{{ stringEnum }}"</q-chip>
-                           </div>
-                           <div v-if="storeGlobal.showDescription && prop.node.description" class="tree-description text-grey-7" v-html="marked.parse(prop.node.description)"></div>
-                        </template>
-                     </q-tree>
-                  </div>
-               </q-card>
+         <section v-if="responseNodes.length" class="section-card">
+            <div class="section-head">
+               <button type="button" class="fold" :aria-expanded="expanded.response" @click="toggleExpand('response')">
+                  <span class="caret-disc"><span class="caret" :class="{ open: expanded.response }"></span></span>
+                  <span>Responses</span>
+               </button>
+               <IconField class="filter-field">
+                  <InputIcon class="pi pi-search" />
+                  <InputText v-model="filterResponse" placeholder="Filter" size="small" />
+                  <button v-if="filterResponse" type="button" class="search-clear" aria-label="Clear filter" @click="filterResponse = ''">
+                     <i class="pi pi-times"></i>
+                  </button>
+               </IconField>
             </div>
-         </template>
-      </q-scroll-area>
+            <XSchemaTree :nodes="filteredResponse" :expanded="expanded.response" :expand-token="tokens.response" />
+         </section>
 
-      <!-- <pre style="font-size: 10px; line-height: 12px">{{ theOpenapiDocument }}</pre> -->
-   </q-page>
+         <section v-if="callbacks.length" class="section-card">
+            <div class="section-head"><h3>Callbacks</h3></div>
+            <article v-for="callback in callbacks" :key="callback.name + callback.expression" class="callback">
+               <div class="path-bar compact">
+                  <span class="method" :class="'m-' + callback.method">{{ callback.method }}</span>
+                  <code>{{ callback.name }}</code>
+               </div>
+               <p class="section-note">{{ callback.expression }}</p>
+               <XMarkdown v-if="callback.description" :source="callback.description" />
+               <XSchemaTree v-if="callback.body" :nodes="callback.body.nodes" />
+            </article>
+         </section>
+      </div>
+
+      <XSamplesPanel :method="current.method" :route="current.route" :webhook="current.webhook" :servers="servers" :security="security" :parameters="parameters" :request-example="request?.example" :responses="sampleResponses" :code-samples="codeSamples" />
+   </article>
+
+   <article v-else-if="tagName" class="page">
+      <header class="page-header">
+         <p class="kicker">Tag</p>
+         <h2>{{ tagTitle }}</h2>
+      </header>
+      <XMarkdown v-if="tagDescription" :source="tagDescription" />
+      <div class="tag-operations">
+         <RouterLink v-for="operation in tagOperations" :key="operation.method + operation.operationId" class="op-row" :title="operation.route" :to="{ name: 'page-details', params: { object: tagName, operation: operation.operationId } }">
+            <span class="method" :class="'m-' + operation.method">{{ operation.method }}</span>
+            <span class="op-label" :class="{ strike: operation.deprecated }">{{ operation.summary }}</span>
+         </RouterLink>
+         <p v-if="!tagOperations.length" class="section-note">No operations for this tag.</p>
+      </div>
+   </article>
+
+   <article v-else class="page">
+      <Message severity="warn" :closable="false">This operation is not in the current specification.</Message>
+   </article>
 </template>
 
 <script setup lang="ts">
-import { ref, inject, Ref, computed, watch, reactive } from 'vue'
-import { useQuasar, QTree } from 'quasar'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-// import { QTreeNode } from 'quasar'
-import { OpenAPIV3 } from 'openapi-types'
-import { UOpenApi } from 'src/utils/openapi'
+import Button from 'primevue/button'
+import InputText from 'primevue/inputtext'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
+import Message from 'primevue/message'
+import Select from 'primevue/select'
+import Tag from 'primevue/tag'
+import { useToast } from 'primevue/usetoast'
+import XMarkdown from 'src/components/markdown-view/x-markdown.vue'
+import XSamplesPanel from 'src/components/samples-panel/x-samples-panel.vue'
+import XSchemaTree from 'src/components/schema-tree/x-schema-tree.vue'
+import { useOpenApi } from 'src/composables/use-openapi'
+import { useSchemaDialog } from 'src/composables/use-schema-dialog'
 import { useGlobalStore } from 'src/stores/global'
-import { marked } from 'marked'
-
-import XBadgeLength from 'src/components/badge-length'
-import XBadgeMinimumMaximum from 'src/components/badge-minimum-maximum'
-import XBadgeObjectType from 'src/components/badge-object-type'
-import XBadgePattern from 'src/components/badge-pattern'
-
-interface IAdditionnalDocument {
-   'x-tagGroups': {
-      name: string
-      tags: string[]
-   }[]
-}
-
-interface IAdditionnalTag {
-   'x-displayName': string
-   description: string
-}
-
-type IEzmaxDocument = OpenAPIV3.Document & IAdditionnalDocument
-type IEzmaxTag = OpenAPIV3.TagObject & IAdditionnalTag
+import { buildNav, findOperation, findWebhook } from 'src/utils/nav'
+import { flagSeverity, formatTag, vendorExtensions } from 'src/utils/openapi'
+import { operationForLlm, securityOptions, serverOptions } from 'src/utils/samples'
+import { bodyModel, callbackModels, filterNodes, listParameters, parameterSections, responseModels, type SchemaNode } from 'src/utils/schema-tree'
 
 const route = useRoute()
-const quasar = useQuasar()
-const storeGlobal = useGlobalStore()
+const toast = useToast()
+const store = useGlobalStore()
+const { document } = useOpenApi()
+const openSchema = useSchemaDialog() || (() => undefined)
 
-const theOpenapiDocument = inject('theOpenapiDocument') as Ref<IEzmaxDocument | undefined>
-
-const theRequestTree = ref<any[]>([])
-const theResponseTree = ref<any[]>([])
-const theParameterTree = ref<any[]>([])
-
-const thePathTreeRef = ref<QTree>()
-const theRequestTreeRef = ref<QTree>()
-const theResponseTreeRef = ref<QTree>()
-
+const contentType = ref('')
 const filterRequest = ref('')
 const filterResponse = ref('')
+const advancedOpen = ref(store.showProperties)
+const expanded = reactive({ path: true, request: true, response: true })
+const tokens = reactive({ path: 0, request: 0, response: 0 })
 
-const checkNodeMatch = (node: any, needle: string): { labelMatch: boolean; anyMatch: boolean } => {
-   const labelMatch = Boolean(node.label && node.label.toLowerCase().includes(needle))
-   const typeMatch = Boolean(node.type && node.type.toLowerCase().includes(needle))
-   const descMatch = Boolean(node.description && node.description.toLowerCase().includes(needle))
-   return {
-      labelMatch,
-      anyMatch: labelMatch || typeMatch || descMatch
-   }
-}
+const tagName = computed(() => (route.name === 'page-details' && typeof route.params.object === 'string' ? route.params.object : ''))
+const tagObject = computed(() => document.value?.tags?.find((tag: any) => tag.name === tagName.value))
+const tagTitle = computed(() => tagObject.value?.['x-displayName'] || (tagName.value ? formatTag(tagName.value) : ''))
+const tagDescription = computed(() => tagObject.value?.description || '')
 
-const filterNodes = (nodes: any[], needle: string, parentMatched = false): any[] => {
-   if (!needle) return nodes
-   const result: any[] = []
-
-   for (const node of nodes) {
-      const { labelMatch, anyMatch } = checkNodeMatch(node, needle)
-      // Un enfant conserve ses sous-éléments uniquement si un ancêtre avait un label correspondant (ex: objEzsignfolder)
-      const isMatchedByParentLabel = parentMatched || labelMatch
-      const isMatched = parentMatched || anyMatch
-
-      let filteredChildren: any[] = []
-      if (node.children && node.children.length > 0) {
-         filteredChildren = filterNodes(node.children, needle, isMatchedByParentLabel)
-      }
-
-      if (isMatched || filteredChildren.length > 0) {
-         result.push({
-            ...node,
-            children: isMatchedByParentLabel ? node.children : filteredChildren
-         })
-      }
-   }
-
-   return result
-}
-
-const filteredRequestTree = computed(() => {
-   const needle = filterRequest.value.trim().toLowerCase()
-   if (!needle) return theRequestTree.value
-   return filterNodes(theRequestTree.value, needle)
+const current = computed(() => {
+   if (!document.value) return undefined
+   if (route.name === 'webhook') return findWebhook(document.value, String(route.params.name || ''))
+   if (typeof route.params.operation === 'string') return findOperation(document.value, route.params.operation)
+   return undefined
 })
 
-const filteredResponseTree = computed(() => {
-   const needle = filterResponse.value.trim().toLowerCase()
-   if (!needle) return theResponseTree.value
-   return filterNodes(theResponseTree.value, needle)
+const extensions = computed(() => vendorExtensions(current.value?.operation))
+const parameters = computed(() => (current.value ? listParameters(current.value.pathItem, current.value.operation, document.value) : []))
+const parameterBlocks = computed(() => parameterSections(parameters.value))
+const request = computed(() => (current.value ? bodyModel(current.value.operation.requestBody, document.value, contentType.value || undefined) : undefined))
+const responses = computed(() => (current.value ? responseModels(current.value.operation.responses, document.value) : []))
+const callbacks = computed(() => (current.value?.operation?.callbacks ? callbackModels(current.value.operation.callbacks, document.value) : []))
+const servers = computed(() => serverOptions(current.value?.operation?.servers || current.value?.pathItem?.servers || document.value?.servers))
+const security = computed(() => securityOptions(current.value?.operation?.security !== undefined ? current.value.operation.security : document.value?.security, document.value?.components?.securitySchemes))
+const codeSamples = computed(() => current.value?.operation?.['x-codeSamples'] || current.value?.operation?.['x-code-samples'] || [])
+
+const responseNodes = computed<SchemaNode[]>(() =>
+   responses.value.map((response) => ({
+      key: response.status,
+      label: response.status,
+      typeLabel: response.typeLabel,
+      schemaName: response.schemaName,
+      schemaNames: response.schemaNames,
+      description: response.description,
+      required: false,
+      deprecated: false,
+      nullable: false,
+      readOnly: false,
+      writeOnly: false,
+      enumValues: [],
+      note: [response.contentType, response.stream ? 'stream' : '', response.headers.length ? `Headers: ${response.headers.map((header) => header.name).join(', ')}` : '', response.links.length ? `Links: ${response.links.map((link) => link.name).join(', ')}` : '', response.others.length ? `Also: ${response.others.join(', ')}` : ''].filter(Boolean).join(' · '),
+      children: response.nodes
+   }))
+)
+
+const filteredRequest = computed(() => filterNodes(request.value?.nodes || [], filterRequest.value.trim().toLowerCase()))
+const filteredResponse = computed(() => filterNodes(responseNodes.value, filterResponse.value.trim().toLowerCase()))
+const sampleResponses = computed(() => responses.value.map((response) => ({ status: response.status, description: response.description, example: response.example })))
+const tagOperations = computed(() => {
+   const model = document.value ? buildNav(document.value) : undefined
+   return (model?.byTag[tagName.value] || []).filter((operation) => store.showDeprecated || !operation.deprecated)
 })
-
-const theExpandCollapseTree = reactive({
-   path: true,
-   request: true,
-   response: true
-})
-
-const thePage = computed<IEzmaxTag | undefined>(() => {
-   if (theOpenapiDocument.value) {
-      const page = theOpenapiDocument.value.tags?.find((tag) => tag.name == route.params.object) as IEzmaxTag
-      return page
-   } else {
-      return undefined
-   }
-})
-
-// const theOperation = ref<{ method: string; route: string; operation?: OpenAPIV3.OperationObject }>()
-const theOperation = computed<{ method: string; route: string; operation?: OpenAPIV3.OperationObject }>(() => {
-   if (theOpenapiDocument.value) {
-      const paths = Object.keys(theOpenapiDocument.value.paths).map((obj) => {
-         return {
-            route: obj,
-            detail: theOpenapiDocument.value?.paths[obj]
-         }
-      }) as { route: string; detail: OpenAPIV3.PathItemObject }[]
-
-      const operation = paths.find((path) => {
-         if (
-            (path.detail.get && path.detail.get.operationId == route.params.operation) ||
-            (path.detail.post && path.detail.post.operationId == route.params.operation) ||
-            (path.detail.put && path.detail.put.operationId == route.params.operation) ||
-            (path.detail.patch && path.detail.patch.operationId == route.params.operation) ||
-            (path.detail.delete && path.detail.delete.operationId == route.params.operation)
-         ) {
-            return path
-         } else {
-            return undefined
-         }
-      })
-
-      if (operation?.detail.get && operation.detail.get.operationId == route.params.operation) {
-         return {
-            method: 'get',
-            route: operation.route,
-            operation: operation.detail.get
-         }
-      } else if (operation?.detail.post && operation.detail.post.operationId == route.params.operation) {
-         return {
-            method: 'post',
-            route: operation.route,
-            operation: operation.detail.post
-         }
-      } else if (operation?.detail.put && operation.detail.put.operationId == route.params.operation) {
-         return {
-            method: 'put',
-            route: operation.route,
-            operation: operation.detail.put
-         }
-      } else if (operation?.detail.patch && operation.detail.patch.operationId == route.params.operation) {
-         return {
-            method: 'patch',
-            route: operation.route,
-            operation: operation.detail.patch
-         }
-      } else if (operation?.detail.delete && operation.detail.delete.operationId == route.params.operation) {
-         return {
-            method: 'delete',
-            route: operation.route,
-            operation: operation.detail.delete
-         }
-      } else {
-         return {
-            method: '',
-            route: '',
-            operation: undefined
-         }
-      }
-   } else {
-      return {
-         method: '',
-         route: '',
-         operation: undefined
-      }
-   }
-})
-
-const theXPropertiesBoolean = computed(() => {
-   const op = theOperation.value?.operation as any
-   if (!op) return []
-
-   const xProps: { key: string; label: string; value: any; color: string }[] = []
-   const colorMap: Record<string, string> = {
-      POWERAUTOMATE: 'blue-8',
-      INTERNAL: 'indigo-9',
-      SUPERADMIN: 'pink-9'
-      // Ajoutez d'autres couleurs ici si nécessaire
-   }
-
-   for (const key in op) {
-      if (key.startsWith('x-')) {
-         const value = op[key]
-         const label = key.replace('x-', '').toUpperCase()
-         if (typeof value === 'boolean' && value === true) {
-            xProps.push({
-               key,
-               label,
-               value,
-               color: colorMap[label] || 'primary'
-            })
-         }
-      }
-   }
-   return xProps.sort((a, b) => a.label.localeCompare(b.label))
-})
-
-const theXPropertiesArray = computed(() => {
-   const op = theOperation.value?.operation as any
-   if (!op) return []
-
-   const xProps: { key: string; label: string; value: any }[] = []
-   for (const key in op) {
-      if (key.startsWith('x-')) {
-         const value = op[key]
-         const label = key.replace('x-', '').toUpperCase()
-         if (Array.isArray(value) && value.length > 0) {
-            xProps.push({ key, label, value })
-         }
-      }
-   }
-   return xProps.sort((a, b) => a.label.localeCompare(b.label))
-})
-
-function setRequestTree() {
-   theRequestTree.value = []
-   const openapiDocument = theOpenapiDocument.value
-   const requestBody = theOperation.value?.operation?.requestBody
-   theRequestTree.value = getRequestTree(requestBody, openapiDocument)
-}
-
-function setResponseTree() {
-   theResponseTree.value = []
-   const openapiDocument = theOpenapiDocument.value
-   const responses = theOperation.value?.operation?.responses
-   theResponseTree.value = getResponseTree(responses, openapiDocument)
-}
-
-function setParameterTree() {
-   theParameterTree.value = []
-   const openapiDocument = theOpenapiDocument.value
-   const parameters = theOperation.value?.operation?.parameters
-   theParameterTree.value = getParameterTree(parameters, openapiDocument)
-}
-
-function getTree(ref: any): any[] {
-   let tree = []
-   const properties = getProperties(ref)
-
-   if (properties) {
-      for (const key in properties) {
-         const element = properties[key]
-         let children: any[] = []
-         const isRequired = ref.required && ref.required.length > 0 && ref.required.includes(key) ? true : false
-
-         if (element?.items?.allOf && element.items.allOf.length > 0) {
-            for (let index = 0; index < element.items.allOf.length; index++) {
-               if (element.items.allOf[index]?.ref) children = [...children, ...getTree(element.items.allOf[index]?.ref)]
-               else if (element.items.allOf[index]) children = [...children, ...getTree(element.items.allOf[index])]
-            }
-         }
-
-         if (element?.allOf && element.allOf.length > 0) {
-            for (let index = 0; index < element.allOf.length; index++) {
-               if (element.allOf[index]?.ref) children = [...children, ...getTree(element.allOf[index]?.ref)]
-               else if (element.allOf[index]) children = [...children, ...getTree(element.allOf[index])]
-            }
-         }
-
-         if (element?.properties) {
-            children = [...children, ...getTree(element)]
-         }
-
-         if (element?.items?.properties) {
-            children = [...children, ...getTree(element?.items)]
-         }
-
-         children.sort((a, b) => customSort(a.label, b.label))
-
-         if (element) {
-            tree.push({
-               label: key,
-               children: children,
-               description: element && Object.prototype.hasOwnProperty.call(element, 'description') ? element.description : '',
-               maximum: element.maximum,
-               minimum: element.minimum,
-               type: element.type,
-               pattern: element.pattern,
-               minLength: element.minLength,
-               maxLength: element.maxLength,
-               enum: element.enum || [],
-               required: isRequired
-            })
-         }
-      }
-   }
-
-   tree.sort((a, b) => customSort(a.label, b.label))
-
-   return tree
-}
-
-function customSort(a: string, b: string) {
-   const order: any = {
-      mPayload: 0,
-      a_obj: 1,
-      obj: 2,
-      pki: 3,
-      fki: 4,
-      objAudit: 5,
-      objDebug: 6,
-      objDebugPayload: 7
-   }
-
-   const getSortValue = (label: string) => {
-      for (const key in order) {
-         if (label.startsWith(key)) {
-            return order[key]
-         }
-      }
-      return 8 // Default value for other labels
-   }
-
-   const valueA = getSortValue(a)
-   const valueB = getSortValue(b)
-
-   if (valueA !== valueB) {
-      return valueA - valueB
-   } else {
-      return a.localeCompare(b) // Sort alphabetically for labels within the same category
-   }
-}
-
-function getProperties(ref: any) {
-   let properties: any = {}
-
-   if (ref?.allOf) {
-      ref.allOf.forEach((element: any) => {
-         if (element?.properties) {
-            properties = { ...properties, ...element.properties }
-         }
-      })
-   }
-
-   if (ref?.properties) {
-      if (ref?.properties?.allOf) {
-         properties = { ...properties, ...getProperties(ref.properties.allOf) }
-      } else {
-         properties = { ...properties, ...ref.properties }
-      }
-   }
-
-   return properties
-}
-
-function getRequestTree(body: OpenAPIV3.ReferenceObject | OpenAPIV3.RequestBodyObject | undefined, openapiDocument: IEzmaxDocument | undefined) {
-   const requestBody = body as any
-   const applicationJsonSchema = UOpenApi.findRefs(requestBody?.content?.['application/json']?.schema, openapiDocument)
-   const ref = applicationJsonSchema?.$ref
-   return getTree(ref)
-}
-
-function getResponseTree(bodyResponses: OpenAPIV3.ResponsesObject | undefined, openapiDocument: IEzmaxDocument | undefined) {
-   let tree = []
-
-   const responses = bodyResponses as any
-
-   for (const key in responses) {
-      const response = responses[key]
-      const applicationJsonSchema = UOpenApi.findRefs(response?.content?.['application/json']?.schema, openapiDocument)
-      const ref = applicationJsonSchema?.$ref
-
-      const children = getTree(ref)
-
-      tree.push({
-         label: key,
-         children: children
-      })
-   }
-   return tree
-}
-
-function getParameterTree(bodyParameters: any | undefined, openapiDocument: IEzmaxDocument | undefined) {
-   let tree = []
-
-   const parameters = bodyParameters
-
-   for (const key in parameters) {
-      const parameter = parameters[key]
-      const applicationJsonSchema = UOpenApi.findRefs(parameter, openapiDocument)
-      const ref = applicationJsonSchema?.$ref || applicationJsonSchema
-
-      tree.push({
-         label: ref?.name,
-         ...ref?.schema
-      })
-   }
-
-   return tree
-}
-
-function onCopy() {
-   navigator.clipboard.writeText(theOperation.value?.route || 'undefined')
-   navigator.clipboard.writeText(theOperation.value?.route || 'undefined')
-   quasar.notify({
-      message: 'La route a été copié avec succès',
-      color: 'positive'
-   })
-}
-
-function onExpandCollapseTree(treeName: 'path' | 'request' | 'response') {
-   switch (treeName) {
-      case 'path':
-         theExpandCollapseTree.path = !theExpandCollapseTree.path
-         if (theExpandCollapseTree.path) thePathTreeRef.value?.expandAll()
-         else thePathTreeRef.value?.collapseAll()
-         break
-      case 'request':
-         theExpandCollapseTree.request = !theExpandCollapseTree.request
-         if (theExpandCollapseTree.request) theRequestTreeRef.value?.expandAll()
-         else theRequestTreeRef.value?.collapseAll()
-         break
-      case 'response':
-         theExpandCollapseTree.response = !theExpandCollapseTree.response
-         if (theExpandCollapseTree.response) theResponseTreeRef.value?.expandAll()
-         else theResponseTreeRef.value?.collapseAll()
-         break
-   }
-}
-
-let loadTimeout: any
-
-async function load() {
-   if (loadTimeout) clearTimeout(loadTimeout)
-   loadTimeout = setTimeout(() => {
-      setRequestTree()
-      setResponseTree()
-      setParameterTree()
-   }, 100)
-}
-
-load()
 
 watch(
-   () => theOperation.value,
+   () => [route.params.operation, route.params.name, route.params.object],
    () => {
-      load()
-   },
-   {
-      deep: true
+      contentType.value = ''
+      filterRequest.value = ''
+      filterResponse.value = ''
+      advancedOpen.value = store.showProperties
+      expanded.path = true
+      expanded.request = true
+      expanded.response = true
    }
 )
 
-// load()
+function toggleExpand(section: 'path' | 'request' | 'response') {
+   expanded[section] = !expanded[section]
+   tokens[section] += 1
+}
+
+async function copyPath() {
+   await navigator.clipboard.writeText(current.value?.route || '')
+   toast.add({ severity: 'success', summary: 'Copié', detail: 'La route a été copiée.', life: 2200 })
+}
+
+async function copyLlm() {
+   if (!current.value) return
+   const markdown = operationForLlm({
+      title: document.value?.info?.title,
+      method: current.value.method,
+      route: current.value.route,
+      summary: current.value.operation.summary,
+      description: current.value.operation.description,
+      parameters: parameters.value,
+      requestSchema: request.value?.schemaName || request.value?.typeLabel,
+      requestExample: request.value?.example,
+      responses: responses.value.map((response) => ({ status: response.status, description: response.description, schemaName: response.schemaName, typeLabel: response.typeLabel }))
+   })
+   await navigator.clipboard.writeText(markdown)
+   toast.add({ severity: 'success', summary: 'Copié', detail: 'Le résumé pour assistant a été copié.', life: 2200 })
+}
 </script>
-
-<style lang="scss">
-// $
-@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@200;300;400;500;600;700;800;900&display=swap');
-
-.method_get {
-   background-color: $green-9;
-}
-.method_post {
-   background: $blue-9;
-}
-.method_put {
-   background: $purple-8;
-}
-.method_patch {
-   background: $orange-10;
-}
-.method_delete {
-   background: $red-10;
-}
-
-.filter-input {
-   width: 140px;
-   font-size: 11px;
-   text-transform: none !important;
-   .q-field__control {
-      height: 26px !important;
-      min-height: 26px !important;
-      padding: 0 8px;
-      &:before {
-         border-color: #d0d0d0;
-      }
-      &:after {
-         border-color: #757575 !important;
-         border-width: 1px !important;
-      }
-   }
-   .q-field__marginal {
-      height: 26px !important;
-   }
-   input {
-      padding: 0;
-      font-size: 12px;
-      text-transform: none !important;
-   }
-}
-</style>

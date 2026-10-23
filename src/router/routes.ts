@@ -7,7 +7,18 @@ const routes: RouteRecordRaw[] = [
       children: [
          {
             path: '',
+            name: 'home',
             component: () => import('src/pages/page-home.vue')
+         },
+         {
+            path: 'schema/:name',
+            name: 'schema',
+            component: () => import('src/pages/page-schema.vue')
+         },
+         {
+            path: 'webhook/:name',
+            name: 'webhook',
+            component: () => import('src/pages/page-detail.vue')
          },
          {
             path: ':object/:operation?',
@@ -16,11 +27,9 @@ const routes: RouteRecordRaw[] = [
          }
       ]
    },
-
-   // Always leave this as last one,
-   // but you can also remove it
    {
       path: '/:catchAll(.*)*',
+      name: 'not-found',
       component: () => import('src/pages/page-error-404.vue')
    }
 ]

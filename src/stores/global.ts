@@ -4,13 +4,21 @@ export const useGlobalStore = defineStore('global', {
    state: () => ({
       showDescription: false,
       showDeprecated: false,
-      /** Globally expanded properties list (detail pages, persisted in session) */
-      showProperties: false
+      showProperties: false,
+      showObjectNames: true,
+      darkMode: false,
+      textSize: 1,
+      specId: 'internal',
+      schemasOpen: false,
+      webhooksOpen: false,
+      searchOptionsOpen: false,
+      searchInName: true,
+      searchInDescription: false,
+      samplesOpen: true,
+      samplesOverlay: false,
+      jsonExplorer: false
    }),
-   getters: {},
-   actions: {},
-
    persist: {
-      storage: window.sessionStorage
+      storage: window.localStorage
    }
 })
