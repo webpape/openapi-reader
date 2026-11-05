@@ -48,17 +48,17 @@
 
          <section v-for="section in parameterBlocks" :key="section.in" class="section-card">
             <div class="section-head">
-               <button type="button" class="fold" :aria-expanded="expanded.path" @click="toggleExpand('path')">
-                  <span class="caret-disc"><span class="caret" :class="{ open: expanded.path }"></span></span>
+               <button type="button" class="fold" :aria-expanded="expanded[section.in] ?? true" @click="toggleExpand(section.in)">
+                  <span class="caret-disc"><span class="caret" :class="{ open: expanded[section.in] ?? true }"></span></span>
                   <span>{{ section.title }}</span>
                </button>
             </div>
-            <XSchemaTree :nodes="section.nodes" :expanded="expanded.path" :expand-token="tokens.path" />
+            <XSchemaTree v-show="expanded[section.in] ?? true" :nodes="section.nodes" :expanded="expanded[section.in] ?? true" :expand-token="tokens[section.in] ?? 0" />
          </section>
 
          <section v-if="request" class="section-card">
             <div class="section-head">
-               <button type="button" class="fold" :aria-expanded="expanded.request" @click="toggleExpand('request')">
+               <button type="button" class="fold" :aria-expanded="expanded.request" @click="toggleExpand('request', filteredRequest)">
                   <span class="caret-disc"><span class="caret" :class="{ open: expanded.request }"></span></span>
                   <span>Request body <small v-if="request.required">required</small></span>
                </button>
@@ -73,14 +73,16 @@
                   </button>
                </IconField>
             </div>
-            <p v-if="request.description" class="section-note">{{ request.description }}</p>
-            <p v-if="request.stream" class="section-note">Stream of items (itemSchema).</p>
-            <XSchemaTree :nodes="filteredRequest" :expanded="expanded.request" :expand-token="tokens.request" />
+            <div v-show="showSectionContent('request', filteredRequest)">
+               <p v-if="request.description" class="section-note">{{ request.description }}</p>
+               <p v-if="request.stream" class="section-note">Stream of items (itemSchema).</p>
+               <XSchemaTree :nodes="filteredRequest" :expanded="expanded.request" :expand-token="tokens.request" />
+            </div>
          </section>
 
          <section v-if="responseNodes.length" class="section-card">
             <div class="section-head">
-               <button type="button" class="fold" :aria-expanded="expanded.response" @click="toggleExpand('response')">
+               <button type="button" class="fold" :aria-expanded="expanded.response" @click="toggleExpand('response', filteredResponse)">
                   <span class="caret-disc"><span class="caret" :class="{ open: expanded.response }"></span></span>
                   <span>Responses</span>
                </button>
@@ -92,7 +94,7 @@
                   </button>
                </IconField>
             </div>
-            <XSchemaTree :nodes="filteredResponse" :expanded="expanded.response" :expand-token="tokens.response" />
+            <XSchemaTree v-show="showSectionContent('response', filteredResponse)" :nodes="filteredResponse" :expanded="expanded.response" :expand-token="tokens.response" />
          </section>
 
          <section v-if="callbacks.length" class="section-card">
@@ -109,7 +111,9 @@
          </section>
       </div>
 
-      <XSamplesPanel :method="current.method" :route="current.route" :webhook="current.webhook" :servers="servers" :security="security" :parameters="parameters" :request-example="request?.example" :responses="sampleResponses" :code-samples="codeSamples" />
+      <div class="samples-slot">
+         <XSamplesPanel :method="current.method" :route="current.route" :webhook="current.webhook" :servers="servers" :security="security" :parameters="parameters" :request-example="request?.example" :responses="sampleResponses" :code-samples="codeSamples" />
+      </div>
    </article>
 
    <article v-else-if="tagName" class="page">
@@ -164,8 +168,8 @@ const contentType = ref('')
 const filterRequest = ref('')
 const filterResponse = ref('')
 const advancedOpen = ref(store.showProperties)
-const expanded = reactive({ path: true, request: true, response: true })
-const tokens = reactive({ path: 0, request: 0, response: 0 })
+const expanded = reactive<Record<string, boolean>>({ path: true, query: true, header: true, cookie: true, request: true, response: true })
+const tokens = reactive<Record<string, number>>({ path: 0, query: 0, header: 0, cookie: 0, request: 0, response: 0 })
 
 const tagName = computed(() => (route.name === 'page-details' && typeof route.params.object === 'string' ? route.params.object : ''))
 const tagObject = computed(() => document.value?.tags?.find((tag: any) => tag.name === tagName.value))
@@ -224,14 +228,27 @@ watch(
       filterResponse.value = ''
       advancedOpen.value = store.showProperties
       expanded.path = true
+      expanded.query = true
+      expanded.header = true
+      expanded.cookie = true
       expanded.request = true
       expanded.response = true
    }
 )
 
-function toggleExpand(section: 'path' | 'request' | 'response') {
-   expanded[section] = !expanded[section]
-   tokens[section] += 1
+function hasNestedTrees(nodes?: SchemaNode[]): boolean {
+   if (!nodes || !nodes.length) return false
+   return nodes.some((node) => node.children.length > 0)
+}
+
+function showSectionContent(section: string, nodes?: SchemaNode[]): boolean {
+   if (hasNestedTrees(nodes)) return true
+   return expanded[section] ?? true
+}
+
+function toggleExpand(section: string, nodes?: SchemaNode[]) {
+   expanded[section] = !(expanded[section] ?? true)
+   tokens[section] = (tokens[section] ?? 0) + 1
 }
 
 async function copyPath() {

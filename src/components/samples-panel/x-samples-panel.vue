@@ -3,12 +3,10 @@
       <i class="pi pi-code"></i>
       Samples
    </button>
-   <aside v-else class="samples" :class="{ overlay: store.samplesOverlay }">
+   <aside v-else class="samples">
       <div class="samples-head">
          <h2>Samples</h2>
          <div class="sample-actions">
-            <Button class="copy-btn" icon="pi pi-copy" label="cURL" size="small" text @click="copy(curl, 'cURL copié')" />
-            <Button :icon="store.samplesOverlay ? 'pi pi-arrow-left' : 'pi pi-clone'" text rounded size="small" :aria-label="store.samplesOverlay ? 'Dock beside content' : 'Float over content'" v-tooltip.left="store.samplesOverlay ? 'Dock beside content' : 'Float over content'" @click="store.samplesOverlay = !store.samplesOverlay" />
             <Button icon="pi pi-times" text rounded size="small" aria-label="Close samples" @click="store.samplesOpen = false" />
          </div>
       </div>
@@ -33,7 +31,12 @@
       </div>
 
       <div class="sample-block">
-         <div class="sample-label">cURL</div>
+         <div class="sample-toolbar">
+            <span class="sample-label">cURL</span>
+            <div class="sample-actions">
+               <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy cURL" @click="copy(curl, 'cURL copié')" />
+            </div>
+         </div>
          <pre><code class="hljs language-bash" v-html="highlighted(curl, 'bash')"></code></pre>
       </div>
 
@@ -41,7 +44,7 @@
          <div class="sample-toolbar">
             <span class="sample-label">Request</span>
             <div class="sample-actions">
-               <button type="button" class="explorer-toggle" :class="{ active: store.jsonExplorer }" :aria-pressed="store.jsonExplorer" @click="store.jsonExplorer = !store.jsonExplorer">Explorer</button>
+               <button type="button" class="explorer-toggle" :class="{ active: store.jsonExplorer }" :aria-pressed="store.jsonExplorer" @click="store.jsonExplorer = !store.jsonExplorer">JSON Explorer</button>
                <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy request" @click="copy(prettyJson(requestExample), 'Exemple de requête copié')" />
             </div>
          </div>
@@ -59,7 +62,7 @@
             <div class="sample-toolbar">
                <span class="sample-label">{{ activeResponse.status }}</span>
                <div class="sample-actions">
-                  <button type="button" class="explorer-toggle" :class="{ active: store.jsonExplorer }" :aria-pressed="store.jsonExplorer" @click="store.jsonExplorer = !store.jsonExplorer">Explorer</button>
+                  <button type="button" class="explorer-toggle" :class="{ active: store.jsonExplorer }" :aria-pressed="store.jsonExplorer" @click="store.jsonExplorer = !store.jsonExplorer">JSON Explorer</button>
                   <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy response" @click="copy(prettyJson(activeResponse.example), 'Exemple de réponse copié')" />
                </div>
             </div>

@@ -50,7 +50,7 @@ const entries = computed(() => {
    if (props.value && typeof props.value === 'object') return Object.entries(props.value).map(([key, value]) => ({ key, value }))
    return []
 })
-const open = ref(props.depth < 1)
+const open = ref(true)
 
 const literal = computed(() => {
    if (typeof props.value === 'string') return JSON.stringify(props.value)
