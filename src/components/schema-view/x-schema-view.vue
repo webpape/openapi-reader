@@ -16,7 +16,7 @@
       <XMarkdown v-if="meta.description" :source="meta.description" />
 
       <div v-if="meta.enumValues.length" class="enum-row">
-         <span v-for="value in meta.enumValues" :key="String(value)" class="enum-chip">{{ typeof value === 'string' ? `"${value}"` : value }}</span>
+         <span v-for="value in meta.enumValues" :key="String(value)" class="enum-chip">{{ value === '' ? '""' : value }}</span>
       </div>
 
       <p v-if="meta.pattern" class="section-note">Pattern <code>{{ meta.pattern }}</code></p>

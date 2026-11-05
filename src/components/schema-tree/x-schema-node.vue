@@ -71,7 +71,7 @@ function onToggle() {
 }
 
 function formatEnum(value: unknown) {
-   if (typeof value === 'string') return `"${value}"`
+   if (value === '') return '""'
    return String(value)
 }
 </script>

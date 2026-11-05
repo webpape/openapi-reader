@@ -1452,6 +1452,9 @@ button.schema-anchor,
 .chip-pattern {
    max-width: none;
    font-family: 'JetBrains Mono', ui-monospace, monospace;
+   font-size: calc(var(--or-chip) - 1.5px);
+   color: var(--p-text-muted-color);
+   opacity: 0.75;
 }
 .chip-warn {
    color: #b45309;
