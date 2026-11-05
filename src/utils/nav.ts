@@ -8,6 +8,7 @@ export interface NavOperation {
    deprecated: boolean
    searchName: string
    searchDescription: string
+   xProperties: string[]
    order: number
 }
 
@@ -28,6 +29,21 @@ export function buildNav(doc: any) {
    const add = (route: string, method: string, operation: any, pathItem: any) => {
       if (!operation) return
       const tags: string[] = operation.tags?.length ? operation.tags : ['default']
+      const xProperties: string[] = []
+      for (const [key, value] of Object.entries(operation || {})) {
+         if (!key.startsWith('x-')) continue
+         xProperties.push(key)
+         if (typeof value === 'boolean' && value) {
+            xProperties.push(`${key}:true`)
+         } else if (Array.isArray(value)) {
+            for (const item of value) {
+               if (item !== undefined && item !== null) xProperties.push(`${key}:${item}`)
+            }
+         } else if (typeof value === 'string' && value) {
+            xProperties.push(`${key}:${value}`)
+         }
+      }
+
       const entry: NavOperation = {
          method,
          route,
@@ -36,6 +52,7 @@ export function buildNav(doc: any) {
          deprecated: Boolean(operation.deprecated),
          searchName: [operation.summary, operation.operationId, route, method].filter(Boolean).join('\n').toLowerCase(),
          searchDescription: String(operation.description || '').toLowerCase(),
+         xProperties,
          order: order++
       }
       for (const tag of tags) {

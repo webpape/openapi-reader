@@ -14,6 +14,8 @@ export const useGlobalStore = defineStore('global', {
       searchOptionsOpen: false,
       searchInName: true,
       searchInDescription: false,
+      searchPropertyFilters: [] as string[],
+      expandRoutesOnSearch: true,
       samplesOpen: true,
       samplesOverlay: false,
       jsonExplorer: false

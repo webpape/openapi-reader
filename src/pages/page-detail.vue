@@ -65,6 +65,7 @@
                <button v-if="store.showObjectNames && request.schemaName" type="button" class="schema-anchor" @click="openSchema(request.schemaName)">{{ request.schemaName }}</button>
                <span v-else-if="store.showObjectNames && request.typeLabel" class="schema-anchor plain">{{ request.typeLabel }}</span>
                <Select v-if="request.contentTypes.length > 1" :model-value="contentType || request.contentType" :options="request.contentTypes" class="content-select" @update:model-value="contentType = $event" />
+               <button type="button" class="explorer-toggle" :class="{ active: requiredOnlyRequest }" :aria-pressed="requiredOnlyRequest" @click="requiredOnlyRequest = !requiredOnlyRequest">Required</button>
                <IconField class="filter-field">
                   <InputIcon class="pi pi-search" />
                   <InputText v-model="filterRequest" placeholder="Filter" size="small" />
@@ -86,6 +87,7 @@
                   <span class="caret-disc"><span class="caret" :class="{ open: expanded.response }"></span></span>
                   <span>Responses</span>
                </button>
+               <button type="button" class="explorer-toggle" :class="{ active: requiredOnlyResponse }" :aria-pressed="requiredOnlyResponse" @click="requiredOnlyResponse = !requiredOnlyResponse">Required</button>
                <IconField class="filter-field">
                   <InputIcon class="pi pi-search" />
                   <InputText v-model="filterResponse" placeholder="Filter" size="small" />
@@ -167,6 +169,8 @@ const openSchema = useSchemaDialog() || (() => undefined)
 const contentType = ref('')
 const filterRequest = ref('')
 const filterResponse = ref('')
+const requiredOnlyRequest = ref(false)
+const requiredOnlyResponse = ref(false)
 const advancedOpen = ref(store.showProperties)
 const expanded = reactive<Record<string, boolean>>({ path: true, query: true, header: true, cookie: true, request: true, response: true })
 const tokens = reactive<Record<string, number>>({ path: 0, query: 0, header: 0, cookie: 0, request: 0, response: 0 })
@@ -212,8 +216,8 @@ const responseNodes = computed<SchemaNode[]>(() =>
    }))
 )
 
-const filteredRequest = computed(() => filterNodes(request.value?.nodes || [], filterRequest.value.trim().toLowerCase()))
-const filteredResponse = computed(() => filterNodes(responseNodes.value, filterResponse.value.trim().toLowerCase()))
+const filteredRequest = computed(() => filterNodes(request.value?.nodes || [], filterRequest.value.trim().toLowerCase(), requiredOnlyRequest.value))
+const filteredResponse = computed(() => filterNodes(responseNodes.value, filterResponse.value.trim().toLowerCase(), requiredOnlyResponse.value))
 const sampleResponses = computed(() => responses.value.map((response) => ({ status: response.status, description: response.description, example: response.example })))
 const tagOperations = computed(() => {
    const model = document.value ? buildNav(document.value) : undefined
@@ -226,6 +230,8 @@ watch(
       contentType.value = ''
       filterRequest.value = ''
       filterResponse.value = ''
+      requiredOnlyRequest.value = false
+      requiredOnlyResponse.value = false
       advancedOpen.value = store.showProperties
       expanded.path = true
       expanded.query = true

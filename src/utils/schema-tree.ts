@@ -437,20 +437,21 @@ export function parameterSections(parameters: FlatParameter[]) {
       .filter((section) => section.nodes.length)
 }
 
-export function filterNodes(nodes: SchemaNode[], needle: string, parentMatched = false): SchemaNode[] {
-   if (!needle) return nodes
+export function filterNodes(nodes: SchemaNode[], needle: string, requiredOnly = false, parentMatched = false): SchemaNode[] {
+   if (!needle && !requiredOnly) return nodes
    const result: SchemaNode[] = []
    for (const node of nodes) {
-      const labelMatch = node.label.toLowerCase().includes(needle)
-      const typeMatch = node.typeLabel.toLowerCase().includes(needle) || (node.schemaName || '').toLowerCase().includes(needle)
-      const descriptionMatch = (node.description || '').toLowerCase().includes(needle)
+      if (requiredOnly && !node.required) continue
+      const labelMatch = !needle || node.label.toLowerCase().includes(needle)
+      const typeMatch = !needle || node.typeLabel.toLowerCase().includes(needle) || (node.schemaName || '').toLowerCase().includes(needle)
+      const descriptionMatch = !needle || (node.description || '').toLowerCase().includes(needle)
       const matchedByParent = parentMatched || labelMatch
       const matched = parentMatched || labelMatch || typeMatch || descriptionMatch
-      const filteredChildren = node.children.length ? filterNodes(node.children, needle, matchedByParent) : []
+      const filteredChildren = node.children.length ? filterNodes(node.children, needle, requiredOnly, matchedByParent) : []
       if (matched || filteredChildren.length) {
          result.push({
             ...node,
-            children: matchedByParent ? node.children : filteredChildren
+            children: matchedByParent ? (requiredOnly ? filterNodes(node.children, '', true) : node.children) : filteredChildren
          })
       }
    }

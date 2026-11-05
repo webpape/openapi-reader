@@ -23,8 +23,7 @@
 
       <section v-if="nodes.length" class="section-card">
          <div class="section-head">
-            <h3>Fields</h3>
-            <span v-if="meta.required?.length" class="section-note">Required: {{ meta.required.join(', ') }}</span>
+            <h3 class="section-title-subtle">FIELDS</h3>
          </div>
          <XSchemaTree :nodes="nodes" />
       </section>

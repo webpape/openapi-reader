@@ -48,13 +48,65 @@
                         <i class="pi pi-times"></i>
                      </button>
                   </IconField>
-                  <button type="button" class="search-advanced" :class="{ active: store.searchOptionsOpen || store.searchInDescription }" :aria-expanded="store.searchOptionsOpen" title="Search options" @click="store.searchOptionsOpen = !store.searchOptionsOpen">
+                  <button
+                     type="button"
+                     class="search-toggle-expand"
+                     :class="{ active: store.expandRoutesOnSearch }"
+                     :title="store.expandRoutesOnSearch ? 'Routes ouvertes lors de la recherche (cliquer pour fermer)' : 'Routes fermées lors de la recherche (cliquer pour ouvrir)'"
+                     :aria-label="store.expandRoutesOnSearch ? 'Routes ouvertes' : 'Routes fermées'"
+                     @click="store.expandRoutesOnSearch = !store.expandRoutesOnSearch"
+                  >
+                     <i :class="store.expandRoutesOnSearch ? 'pi pi-folder-open' : 'pi pi-folder'"></i>
+                  </button>
+                  <button type="button" class="search-advanced" :class="{ active: store.searchOptionsOpen || store.searchInDescription || Boolean(store.searchPropertyFilters.length) }" :aria-expanded="store.searchOptionsOpen" title="Search options" @click="store.searchOptionsOpen = !store.searchOptionsOpen">
                      <i class="pi pi-sliders-h"></i>
                   </button>
                </div>
                <div v-show="store.searchOptionsOpen" class="search-options">
                   <label><ToggleSwitch v-model="store.searchInName" /> Route name</label>
                   <label><ToggleSwitch v-model="store.searchInDescription" /> Descriptions</label>
+                  <div v-if="groupedXProperties.length" class="prop-filter-wrap">
+                     <button type="button" class="prop-filter-trigger" @click="togglePropPicker">
+                        <div class="prop-filter-chips">
+                           <span v-if="!store.searchPropertyFilters.length" class="placeholder">Properties</span>
+                           <span v-for="key in store.searchPropertyFilters" :key="key" class="p-chip">
+                              <span class="p-chip-label">{{ labelForFilter(key) }}</span>
+                              <TimesIcon class="p-chip-remove-icon" @click.stop="removeFilter(key)" />
+                           </span>
+                        </div>
+                        <span class="prop-dropdown-arrow"></span>
+                     </button>
+                     <Popover ref="propPopover" class="search-prop-popover">
+                        <div class="prop-picker">
+                           <div class="prop-picker-header">
+                              <IconField class="prop-picker-search">
+                                 <InputIcon class="pi pi-search" />
+                                 <InputText v-model="propSearch" placeholder="Search..." size="small" fluid />
+                                 <button v-if="propSearch" type="button" class="search-clear" aria-label="Clear" @click="propSearch = ''">
+                                    <i class="pi pi-times"></i>
+                                 </button>
+                              </IconField>
+                              <Button v-if="store.searchPropertyFilters.length" label="Clear all" text size="small" class="clear-all-btn" @click="store.searchPropertyFilters = []" />
+                           </div>
+                           <div class="prop-groups-list">
+                              <div v-for="group in filteredPropGroups" :key="group.label" class="prop-group">
+                                 <button type="button" class="prop-group-head" @click="toggleGroupCollapse(group.label)">
+                                    <span class="caret" :class="{ open: !collapsedGroups[group.label] }"></span>
+                                    <span class="prop-group-title">{{ group.label }}</span>
+                                    <span class="prop-group-count">{{ group.items.length }}</span>
+                                 </button>
+                                 <div v-show="!collapsedGroups[group.label]" class="prop-group-items">
+                                    <label v-for="item in group.items" :key="item.key" class="prop-item" :class="{ selected: isFilterSelected(item.key) }">
+                                       <input type="checkbox" :checked="isFilterSelected(item.key)" @change="toggleFilter(item.key)" />
+                                       <span class="prop-item-label">{{ item.label }}</span>
+                                    </label>
+                                 </div>
+                              </div>
+                              <p v-if="!filteredPropGroups.length" class="prop-empty">No properties match</p>
+                           </div>
+                        </div>
+                     </Popover>
+                  </div>
                </div>
             </div>
             <div class="sidebar-scroll">
@@ -133,12 +185,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, markRaw, provide, ref, watch } from 'vue'
+import { computed, markRaw, provide, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
+import MultiSelect from 'primevue/multiselect'
 import Popover from 'primevue/popover'
+import TimesIcon from '@primevue/icons/times'
 import ToggleSwitch from 'primevue/toggleswitch'
 import InputText from 'primevue/inputtext'
 import IconField from 'primevue/iconfield'
@@ -170,6 +224,8 @@ const theSearch = ref('')
 const navOpen = ref(false)
 const sidebarWidth = ref(320)
 const openTag = ref(typeof route.params.object === 'string' ? route.params.object : '')
+const searchOpenTags = ref(new Set<string>())
+const searchClosedTags = ref(new Set<string>())
 const settingsPopover = ref<any>()
 const hydrated = ref(false)
 const schemaStack = ref<string[]>([])
@@ -243,6 +299,113 @@ const schemaMatches = computed(() => matchingSchemas.value.slice(0, needle.value
 
 const webhooksExpanded = computed(() => store.webhooksOpen || Boolean(needle.value))
 
+const groupedXProperties = computed(() => {
+   if (!nav.value) return []
+   const propertyCounts = new Map<string, number>()
+   const valueCounts = new Map<string, Map<string, number>>()
+
+   for (const ops of Object.values(nav.value.byTag)) {
+      for (const op of ops) {
+         for (const item of op.xProperties || []) {
+            if (item.includes(':')) {
+               const colonIdx = item.indexOf(':')
+               const prop = item.slice(0, colonIdx)
+               const val = item.slice(colonIdx + 1)
+               if (!valueCounts.has(prop)) valueCounts.set(prop, new Map())
+               const valMap = valueCounts.get(prop)!
+               valMap.set(val, (valMap.get(val) || 0) + 1)
+            } else {
+               propertyCounts.set(item, (propertyCounts.get(item) || 0) + 1)
+            }
+         }
+      }
+   }
+
+   const groups: { label: string; items: { key: string; label: string }[] }[] = []
+
+   for (const [prop, total] of propertyCounts.entries()) {
+      const propTitle = prop.replace(/^x-/, '').toUpperCase()
+      const valMap = valueCounts.get(prop)
+
+      // If it's a simple boolean flag (only 'true' or no values)
+      if (!valMap || valMap.size === 0 || (valMap.size === 1 && valMap.has('true'))) {
+         groups.push({
+            label: propTitle,
+            items: [{ key: prop, label: `Any (${total})` }]
+         })
+      } else {
+         const items = [{ key: prop, label: `Any (${total})` }]
+         const subItems = Array.from(valMap.entries())
+            .map(([val, count]) => ({
+               key: `${prop}:${val}`,
+               label: `${val} (${count})`
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label))
+         items.push(...subItems)
+         groups.push({
+            label: propTitle,
+            items
+         })
+      }
+   }
+
+   return groups.sort((a, b) => a.label.localeCompare(b.label))
+})
+
+const propPopover = ref<any>()
+const propSearch = ref('')
+const collapsedGroups = reactive<Record<string, boolean>>({})
+
+function togglePropPicker(event: Event) {
+   propPopover.value?.toggle(event)
+}
+
+function toggleGroupCollapse(label: string) {
+   collapsedGroups[label] = !collapsedGroups[label]
+}
+
+function isFilterSelected(key: string) {
+   return store.searchPropertyFilters.includes(key)
+}
+
+function toggleFilter(key: string) {
+   if (store.searchPropertyFilters.includes(key)) {
+      store.searchPropertyFilters = store.searchPropertyFilters.filter((k) => k !== key)
+   } else {
+      store.searchPropertyFilters = [...store.searchPropertyFilters, key]
+   }
+}
+
+function removeFilter(key: string) {
+   store.searchPropertyFilters = store.searchPropertyFilters.filter((k) => k !== key)
+}
+
+function labelForFilter(key: string): string {
+   for (const group of groupedXProperties.value) {
+      const match = group.items.find((item) => item.key === key)
+      if (match) {
+         if (key.includes(':')) {
+            const val = key.slice(key.indexOf(':') + 1)
+            return `${group.label}: ${val}`
+         }
+         return `${group.label}`
+      }
+   }
+   return key.replace(/^x-/, '').toUpperCase()
+}
+
+const filteredPropGroups = computed(() => {
+   const q = propSearch.value.trim().toLowerCase()
+   if (!q) return groupedXProperties.value
+   return groupedXProperties.value
+      .map((group) => {
+         const groupMatches = group.label.toLowerCase().includes(q)
+         const items = group.items.filter((item) => groupMatches || item.label.toLowerCase().includes(q))
+         return { ...group, items }
+      })
+      .filter((group) => group.items.length > 0)
+})
+
 const visibleWebhooks = computed(() => {
    if (!nav.value) return []
    return nav.value.webhooks.filter((webhook) => {
@@ -269,13 +432,16 @@ function operationHaystack(operation: NavOperation) {
 }
 
 function tagVisible(tag: string) {
-   if (!needle.value) return operationsFor(tag).length > 0 || !nav.value?.byTag[tag]
-   if (queryScore(`${formatTag(tag)} ${tag}`, needle.value) > 0) return true
    return operationsFor(tag).length > 0
 }
 
 function operationsFor(tag: string) {
-   const operations = (nav.value?.byTag[tag] || []).filter((operation) => store.showDeprecated || !operation.deprecated)
+   let operations = (nav.value?.byTag[tag] || []).filter((operation) => store.showDeprecated || !operation.deprecated)
+   if (store.searchPropertyFilters.length) {
+      operations = operations.filter((op) => {
+         return store.searchPropertyFilters.every((filterKey) => op.xProperties?.includes(filterKey))
+      })
+   }
    if (!needle.value) return operations
    if (queryScore(`${formatTag(tag)} ${tag}`, needle.value) > 0) return operations
    return operations
@@ -286,7 +452,11 @@ function operationsFor(tag: string) {
 }
 
 function isOpen(tag: string) {
-   if (needle.value) return true
+   if (needle.value || store.searchPropertyFilters.length) {
+      if (searchOpenTags.value.has(tag)) return true
+      if (searchClosedTags.value.has(tag)) return false
+      return store.expandRoutesOnSearch
+   }
    return openTag.value === tag
 }
 
@@ -299,6 +469,16 @@ function isActiveOperation(tag: string, operation: NavOperation) {
 }
 
 function onTag(tag: string) {
+   if (needle.value || store.searchPropertyFilters.length) {
+      if (isOpen(tag)) {
+         searchOpenTags.value.delete(tag)
+         searchClosedTags.value.add(tag)
+      } else {
+         searchClosedTags.value.delete(tag)
+         searchOpenTags.value.add(tag)
+      }
+      return
+   }
    if (operationsFor(tag).length && !needle.value && openTag.value === tag) {
       openTag.value = ''
       return
@@ -398,6 +578,14 @@ watch(
    () => {
       navOpen.value = false
       if (typeof route.params.object === 'string') openTag.value = route.params.object
+   }
+)
+
+watch(
+   () => [theSearch.value, store.searchPropertyFilters.length, store.expandRoutesOnSearch],
+   () => {
+      searchOpenTags.value.clear()
+      searchClosedTags.value.clear()
    }
 )
 
