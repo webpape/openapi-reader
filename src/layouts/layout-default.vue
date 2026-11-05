@@ -432,6 +432,13 @@ function operationHaystack(operation: NavOperation) {
 }
 
 function tagVisible(tag: string) {
+   if (store.searchPropertyFilters.length) {
+      return operationsFor(tag).length > 0
+   }
+   if (!needle.value) {
+      return operationsFor(tag).length > 0 || !nav.value?.byTag[tag]
+   }
+   if (queryScore(`${formatTag(tag)} ${tag}`, needle.value) > 0) return true
    return operationsFor(tag).length > 0
 }
 
@@ -470,14 +477,16 @@ function isActiveOperation(tag: string, operation: NavOperation) {
 
 function onTag(tag: string) {
    if (needle.value || store.searchPropertyFilters.length) {
-      if (isOpen(tag)) {
-         searchOpenTags.value.delete(tag)
-         searchClosedTags.value.add(tag)
-      } else {
-         searchClosedTags.value.delete(tag)
-         searchOpenTags.value.add(tag)
+      if (operationsFor(tag).length) {
+         if (isOpen(tag)) {
+            searchOpenTags.value.delete(tag)
+            searchClosedTags.value.add(tag)
+         } else {
+            searchClosedTags.value.delete(tag)
+            searchOpenTags.value.add(tag)
+         }
+         return
       }
-      return
    }
    if (operationsFor(tag).length && !needle.value && openTag.value === tag) {
       openTag.value = ''

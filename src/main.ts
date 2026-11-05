@@ -9,6 +9,7 @@ import router from './router'
 import pinia from './stores'
 import messages from './i18n'
 import { useGlobalStore } from './stores/global'
+import { registerSW } from 'virtual:pwa-register'
 import 'primeicons/primeicons.css'
 import 'highlight.js/styles/github-dark.css'
 import './styles/app.css'
@@ -52,5 +53,7 @@ app.use(
       messages
    })
 )
+
+registerSW({ immediate: true })
 
 app.mount('#app')

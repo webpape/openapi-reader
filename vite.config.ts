@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -45,7 +46,52 @@ function serveSpecs(): Plugin {
 }
 
 export default defineConfig({
-   plugins: [vue(), serveSpecs()],
+   plugins: [
+      vue(),
+      serveSpecs(),
+      VitePWA({
+         registerType: 'autoUpdate',
+         devOptions: {
+            enabled: true,
+            type: 'module',
+            suppressWarnings: true
+         },
+         includeAssets: ['favicon.ico', 'icons/*.png', 'icons/*.svg', 'logo-dark.svg', 'logo-light.svg'],
+         manifest: {
+            name: 'OpenAPI Reader',
+            short_name: 'OpenAPI Reader',
+            description: 'Fast and responsive OpenAPI specification reader and explorer',
+            theme_color: '#223449',
+            background_color: '#18181b',
+            display: 'standalone',
+            orientation: 'any',
+            start_url: '/',
+            icons: [
+               {
+                  src: '/icons/pwa-192x192.png',
+                  sizes: '192x192',
+                  type: 'image/png'
+               },
+               {
+                  src: '/icons/pwa-512x512.png',
+                  sizes: '512x512',
+                  type: 'image/png',
+                  purpose: 'any'
+               },
+               {
+                  src: '/icons/pwa-512x512.png',
+                  sizes: '512x512',
+                  type: 'image/png',
+                  purpose: 'maskable'
+               }
+            ]
+         },
+         workbox: {
+            maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+            globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ttf,woff,eot}']
+         }
+      })
+   ],
    resolve: {
       alias: {
          src: path.join(root, 'src')
