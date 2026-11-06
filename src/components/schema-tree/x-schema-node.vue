@@ -5,7 +5,7 @@
             <i class="pi" :class="open ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
          </button>
          <span v-else class="chevron-spacer"></span>
-         <span class="schema-label" :class="{ deprecated: node.deprecated }">{{ node.label }}</span>
+         <span class="schema-label" :class="{ deprecated: node.deprecated, 'status-success': node.labelTone === 'success', 'status-error': node.labelTone === 'error' }">{{ node.label }}</span>
          <span v-if="node.required" class="required-mark" title="Required">*</span>
          <XBadgeObjectType :type="node.typeLabel" :schema-name="node.schemaName" :schema-names="node.schemaNames" />
          <span v-if="node.format" class="chip chip-format">{{ node.format }}</span>
@@ -21,8 +21,15 @@
       </div>
 
       <div v-if="open && hasBody" class="schema-node-body">
+         <div v-if="store.showXParameters && node.extensions?.length" class="x-params">
+            <p v-for="item in node.extensions" :key="item.key" class="x-param">
+               <span class="x-param-key">{{ item.key }}</span>
+               <span class="x-param-value">{{ item.value }}</span>
+            </p>
+         </div>
          <XMarkdown v-if="store.showDescription && node.description" class="schema-description" :source="node.description" />
          <div v-if="node.enumValues.length" class="enum-row">
+            <span class="enum-prefix">enum:</span>
             <span v-for="value in node.enumValues" :key="String(value)" class="enum-chip">{{ formatEnum(value) }}</span>
          </div>
          <span v-if="node.defaultValue !== undefined" class="chip">default {{ formatEnum(node.defaultValue) }}</span>
@@ -56,7 +63,7 @@ const props = withDefaults(
 
 const store = useGlobalStore()
 const open = ref(props.expanded || props.node.children.length === 0)
-const hasBody = computed(() => Boolean((store.showDescription && props.node.description) || props.node.enumValues.length || props.node.defaultValue !== undefined || props.node.note || props.node.children.length))
+const hasBody = computed(() => Boolean((store.showXParameters && props.node.extensions?.length) || (store.showDescription && props.node.description) || props.node.enumValues.length || props.node.defaultValue !== undefined || props.node.note || props.node.children.length))
 
 watch(
    () => props.expandToken,

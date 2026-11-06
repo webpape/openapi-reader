@@ -32,15 +32,16 @@ export function buildNav(doc: any) {
       const xProperties: string[] = []
       for (const [key, value] of Object.entries(operation || {})) {
          if (!key.startsWith('x-')) continue
-         xProperties.push(key)
-         if (typeof value === 'boolean' && value) {
-            xProperties.push(`${key}:true`)
+         if (typeof value === 'boolean') {
+            if (!value) continue
+            xProperties.push(key, `${key}:true`)
          } else if (Array.isArray(value)) {
-            for (const item of value) {
-               if (item !== undefined && item !== null) xProperties.push(`${key}:${item}`)
-            }
-         } else if (typeof value === 'string' && value) {
-            xProperties.push(`${key}:${value}`)
+            const items = value.filter((item) => item !== undefined && item !== null && item !== '')
+            if (!items.length) continue
+            xProperties.push(key)
+            for (const item of items) xProperties.push(`${key}:${item}`)
+         } else if ((typeof value === 'string' || typeof value === 'number') && value !== '') {
+            xProperties.push(key, `${key}:${value}`)
          }
       }
 

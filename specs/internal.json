@@ -25,6 +25,7 @@
         {
             "url": "https://{sInfrastructureenvironmenttypeDescription}.api.appcluster01.{sInfrastructureregionCode}.ezmax.com/rest",
             "description": "The server endpoint where to send your region specific API requests.",
+            "x-tag-groups": ["External", "Module", "Object", "Report", "Scim", "Tool"],
             "variables": {
                 "sInfrastructureenvironmenttypeDescription": {
                     "enum": [
@@ -49,6 +50,7 @@
         {
             "url": "https://{sInfrastructureenvironmenttypeDescription}.api.global.ezmax.com",
             "description": "The server endpoint where to send your global API requests.",
+            "x-tag-groups": ["Global"],
             "variables": {
                 "sInfrastructureenvironmenttypeDescription": {
                     "enum": [
@@ -63,6 +65,7 @@
         {
             "url": "wss://ws.{sInfrastructureregionCode}.ezmax.com/{sInfrastructureenvironmenttypeDescription}",
             "description": "The server endpoint where to send your websocket requests.",
+            "x-tag-groups": ["Websocket"],
             "variables": {
                 "sInfrastructureenvironmenttypeDescription": {
                     "enum": [

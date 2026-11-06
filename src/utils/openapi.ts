@@ -107,9 +107,18 @@ export function documentKind(doc: any): 'openapi' | 'postman' | 'unknown' {
    return 'unknown'
 }
 
+function withoutManualPages(groups: TagGroup[]): TagGroup[] {
+   return groups
+      .map((group) => ({
+         ...group,
+         tags: (group.tags || []).filter((tag) => tag && !tag.startsWith('General_'))
+      }))
+      .filter((group) => group.name !== 'General' && group.tags.length)
+}
+
 export function tagGroupsOf(doc: any): TagGroup[] {
    const groups = doc?.['x-tagGroups']
-   if (Array.isArray(groups) && groups.length) return groups
+   if (Array.isArray(groups) && groups.length) return withoutManualPages(groups)
    const tags: string[] = []
    const push = (tag: string) => {
       if (tag && !tags.includes(tag)) tags.push(tag)
@@ -123,7 +132,7 @@ export function tagGroupsOf(doc: any): TagGroup[] {
          for (const tag of operation?.tags || []) push(tag)
       }
    }
-   return [{ name: 'Operations', tags }]
+   return withoutManualPages([{ name: 'Operations', tags }])
 }
 
 export function webhooksOf(doc: any): Record<string, any> {

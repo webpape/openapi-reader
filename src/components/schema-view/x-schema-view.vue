@@ -13,9 +13,10 @@
          <Tag v-if="meta.deprecated" severity="danger" value="Deprecated" />
       </div>
 
-      <XMarkdown v-if="meta.description" :source="meta.description" />
+      <XMarkdown v-if="meta.description" class="description" :source="meta.description" />
 
       <div v-if="meta.enumValues.length" class="enum-row">
+         <span class="enum-prefix">enum:</span>
          <span v-for="value in meta.enumValues" :key="String(value)" class="enum-chip">{{ value === '' ? '""' : value }}</span>
       </div>
 

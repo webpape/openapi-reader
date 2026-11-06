@@ -13,6 +13,40 @@ export interface SecurityOption {
    query: Record<string, string>
 }
 
+export function serverTagGroups(server: any): string[] {
+   const raw = server?.['x-tag-groups'] ?? server?.['x-tagGroups']
+   if (Array.isArray(raw)) return raw.map((item) => String(item))
+   if (typeof raw === 'string' && raw) return [raw]
+   return []
+}
+
+export function groupNameForTag(doc: any, tag: string) {
+   if (!tag) return ''
+   const groups = doc?.['x-tagGroups']
+   if (!Array.isArray(groups)) return ''
+   return groups.find((group) => (group?.tags || []).includes(tag))?.name || ''
+}
+
+function sameServer(left: any, right: any) {
+   return String(left?.url || '') === String(right?.url || '')
+}
+
+export function chooseServers(doc: any, pathItem: any, operation: any, groupName: string) {
+   const routeServers = operation?.servers?.length ? operation.servers : pathItem?.servers
+   if (routeServers?.length) return routeServers
+
+   const all = doc?.servers || []
+   if (!groupName) return all
+   const section = all.filter((server: any) => serverTagGroups(server).some((name) => name.toLowerCase() === groupName.toLowerCase()))
+   if (!section.length) return all
+
+   const elsewhere = all.filter((server: any) => !section.includes(server))
+   const duplicated = section.some((server: any) => elsewhere.some((other: any) => sameServer(server, other)))
+   if (!duplicated) return section
+   const extras = elsewhere.filter((other: any) => section.some((server: any) => sameServer(server, other)))
+   return [...section, ...extras]
+}
+
 export function serverOptions(servers: any[] | undefined): ServerOption[] {
    return (servers || []).map((server) => ({
       url: server.url,
@@ -27,12 +61,77 @@ export function serverOptions(servers: any[] | undefined): ServerOption[] {
    }))
 }
 
-export function resolveServer(server: any) {
+/** OpenAPI variable name used for environment (dev / qa / stg / prod / iso) in internal.json */
+export const INFRA_ENV_VAR = 'sInfrastructureenvironmenttypeDescription'
+
+/** Preferred pill order (matches product wording: dev, QA, stage, prod, iso — spec uses `stg` for stage). */
+const INFRA_ENV_CANONICAL_ORDER = ['dev', 'qa', 'stg', 'prod', 'iso']
+
+/** Collect distinct environment enum values from server definitions (spec JSON), then sort canonically. */
+export function infrastructureEnvironmentValues(servers: any[] | undefined): string[] {
+   const seen = new Set<string>()
+   const out: string[] = []
+   for (const server of servers || []) {
+      const variable = server?.variables?.[INFRA_ENV_VAR]
+      const list = variable?.enum
+      if (!Array.isArray(list)) continue
+      for (const item of list) {
+         const raw = String(item)
+         const key = raw.toLowerCase()
+         if (!key || seen.has(key)) continue
+         seen.add(key)
+         out.push(raw)
+      }
+   }
+   return sortInfrastructureEnvironments(out)
+}
+
+function sortInfrastructureEnvironments(values: string[]): string[] {
+   const ordered: string[] = []
+   const used = new Set<string>()
+   for (const canon of INFRA_ENV_CANONICAL_ORDER) {
+      const hit = values.find((v) => v.toLowerCase() === canon)
+      if (hit) {
+         ordered.push(hit)
+         used.add(hit.toLowerCase())
+      }
+   }
+   for (const v of values) {
+      if (!used.has(v.toLowerCase())) ordered.push(v)
+   }
+   return ordered
+}
+
+export function resolveServer(server: any, environment?: string) {
+   const selected = environment ? String(environment).toLowerCase() : ''
    let url = String(server?.url || '')
    for (const [name, variable] of Object.entries(server?.variables || {}) as [string, any][]) {
-      url = url.replaceAll(`{${name}}`, variable?.default ?? '')
+      const replacement = name === INFRA_ENV_VAR && selected ? selected : (variable?.default ?? '')
+      url = url.replaceAll(`{${name}}`, replacement)
    }
    return url.replace(/\/$/, '')
+}
+
+export function serverUrlForEnvironment(server: ServerOption, environment?: string) {
+   const selected = environment ? String(environment).toLowerCase() : ''
+   let url = server.url
+   for (const variable of server.variables) {
+      const replacement = variable.name === INFRA_ENV_VAR && selected ? selected : (variable.defaultValue ?? '')
+      url = url.replaceAll(`{${variable.name}}`, replacement)
+   }
+   return url.replace(/\/$/, '')
+}
+
+/** Pick a persisted environment that is valid for the current enum list; default prod when available. */
+export function coalesceEnvironmentChoice(values: string[], current: string | undefined): string {
+   if (!values.length) return ''
+   let lower = (current || '').toLowerCase()
+   // Legacy UI id `stage` ↔ OpenAPI enum value `stg`
+   if (lower === 'stage') lower = 'stg'
+   if (lower && values.some((v) => v.toLowerCase() === lower)) return values.find((v) => v.toLowerCase() === lower) || lower
+   const prod = values.find((v) => v.toLowerCase() === 'prod')
+   if (prod) return prod
+   return values[0]
 }
 
 export function joinUrl(server: string, path: string) {
@@ -48,6 +147,41 @@ export function applyPathParams(path: string, parameters: FlatParameter[]) {
       const raw = parameter.example !== undefined ? String(parameter.example) : `{${parameter.name}}`
       const value = raw.startsWith('{') ? raw : encodeURIComponent(raw)
       result = result.replaceAll(`{${parameter.name}}`, value)
+   }
+   return result
+}
+
+/** Names of `{param}` placeholders in route template, in first-seen order (deduped). */
+export function pathTemplateParamNames(pathTemplate: string): string[] {
+   const seen = new Set<string>()
+   const out: string[] = []
+   const re = /\{([^}]+)\}/g
+   let m: RegExpExecArray | null
+   while ((m = re.exec(pathTemplate)) !== null) {
+      const n = m[1]
+      if (!seen.has(n)) {
+         seen.add(n)
+         out.push(n)
+      }
+   }
+   return out
+}
+
+export function defaultPathParamValues(pathTemplate: string, parameters: FlatParameter[]): Record<string, string> {
+   const out: Record<string, string> = {}
+   for (const name of pathTemplateParamNames(pathTemplate)) {
+      const p = parameters.find((x) => x.in === 'path' && x.name === name)
+      out[name] = p?.example !== undefined ? String(p.example) : ''
+   }
+   return out
+}
+
+/** Replace `{name}` with encoded values for building the request URL. */
+export function buildPathWithParamValues(pathTemplate: string, values: Record<string, string>): string {
+   let result = pathTemplate
+   for (const name of pathTemplateParamNames(pathTemplate)) {
+      const raw = values[name] ?? ''
+      result = result.replaceAll(`{${name}}`, encodeURIComponent(raw))
    }
    return result
 }

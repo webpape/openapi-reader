@@ -3,6 +3,7 @@ import { resolveRefs } from './openapi'
 export interface SchemaNode {
    key: string
    label: string
+   labelTone?: 'success' | 'error'
    typeLabel: string
    schemaName?: string
    schemaNames?: string[]
@@ -26,6 +27,7 @@ export interface SchemaNode {
    discriminator?: string
    recursive?: boolean
    note?: string
+   extensions: { key: string; value: string }[]
    children: SchemaNode[]
 }
 
@@ -75,6 +77,12 @@ const PREFIX_ORDER: Record<string, number> = {
    objAudit: 5,
    objDebug: 6,
    objDebugPayload: 7
+}
+
+export function statusTone(status: string): 'success' | 'error' | undefined {
+   if (/^2\d\d$/.test(status)) return 'success'
+   if (/^[45]\d\d$/.test(status)) return 'error'
+   return undefined
 }
 
 export function customSort(a: string, b: string) {
@@ -145,14 +153,14 @@ export function describeSchema(schema: any): { typeLabel: string; schemaName?: s
    }
    if (type === 'object' || hasProperties) {
       return {
-         typeLabel: names.length ? names.join(' & ') : schema.title || merged.title || 'object',
+         typeLabel: names[0] || schema.title || merged.title || 'object',
          schemaName: names[0],
-         schemaNames: names,
+         schemaNames: names[0] ? [names[0]] : undefined,
          format: schema.format || merged.format,
          nullable
       }
    }
-   return { typeLabel: type || 'any', schemaName: undefined, format: schema.format || merged.format, nullable }
+   return { typeLabel: type || 'any', schemaName: names[0], schemaNames: names[0] ? [names[0]] : undefined, format: schema.format || merged.format, nullable }
 }
 
 function blankNode(partial: Pick<SchemaNode, 'key' | 'label' | 'typeLabel'> & Partial<SchemaNode>): SchemaNode {
@@ -164,9 +172,32 @@ function blankNode(partial: Pick<SchemaNode, 'key' | 'label' | 'typeLabel'> & Pa
       readOnly: false,
       writeOnly: false,
       enumValues: [],
+      extensions: [],
       children: [],
       ...partial
    }
+}
+
+function extensionText(value: unknown) {
+   if (value === null || value === undefined) return ''
+   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+   return JSON.stringify(value)
+}
+
+function schemaExtensions(schema: any, merged: any) {
+   const bag: Record<string, unknown> = {}
+   const seen = new WeakSet<object>()
+   const take = (source: any) => {
+      if (!source || typeof source !== 'object' || Array.isArray(source) || seen.has(source)) return
+      seen.add(source)
+      for (const [key, value] of Object.entries(source)) {
+         if (key.startsWith('x-') && bag[key] === undefined) bag[key] = value
+      }
+      for (const part of source.allOf || []) take(part)
+   }
+   take(schema)
+   take(merged)
+   return Object.entries(bag).map(([key, value]) => ({ key, value: extensionText(value) }))
 }
 
 export function buildNode(label: string, schema: any, required: boolean, key: string, stack: any[] = [], depth = 0): SchemaNode {
@@ -199,6 +230,7 @@ export function buildNode(label: string, schema: any, required: boolean, key: st
       enumValues,
       discriminator: schema?.discriminator?.propertyName || merged.discriminator?.propertyName,
       recursive: cycle,
+      extensions: schemaExtensions(schema, merged),
       children: []
    })
 
@@ -441,13 +473,13 @@ export function filterNodes(nodes: SchemaNode[], needle: string, requiredOnly = 
    if (!needle && !requiredOnly) return nodes
    const result: SchemaNode[] = []
    for (const node of nodes) {
-      if (requiredOnly && !node.required) continue
       const labelMatch = !needle || node.label.toLowerCase().includes(needle)
       const typeMatch = !needle || node.typeLabel.toLowerCase().includes(needle) || (node.schemaName || '').toLowerCase().includes(needle)
       const descriptionMatch = !needle || (node.description || '').toLowerCase().includes(needle)
       const matchedByParent = parentMatched || labelMatch
       const matched = parentMatched || labelMatch || typeMatch || descriptionMatch
       const filteredChildren = node.children.length ? filterNodes(node.children, needle, requiredOnly, matchedByParent) : []
+      if (requiredOnly && !node.required && !filteredChildren.length) continue
       if (matched || filteredChildren.length) {
          result.push({
             ...node,

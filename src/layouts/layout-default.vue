@@ -8,14 +8,23 @@
             <span v-if="version" class="version">v{{ version }}</span>
          </div>
 
-         <Select v-model="specId" :options="groupedSpecs" option-label="label" option-value="id" option-group-label="label" option-group-children="items" option-disabled="disabled" filter filter-placeholder="Search specs" placeholder="Spec" size="small" class="spec-select" overlay-class="spec-overlay" :disabled="loading && !documentModel">
-            <template #value="{ value }">
-               <span class="spec-value">{{ specFileName(value) }}</span>
-            </template>
-         </Select>
+         <div class="spec-upload">
+            <input ref="specFile" type="file" accept="application/json,.json" class="spec-file" aria-label="Importer un JSON" @change="onUpload" />
+            <button v-if="!uploadedName" type="button" class="spec-upload-btn" :disabled="loading && !documentModel" @click="specFile?.click()">
+               <i class="pi pi-upload"></i>
+               <span>Upload JSON Spec</span>
+            </button>
+            <span v-else class="spec-chip" :title="'JSON actif : ' + uploadedName">
+               <span class="spec-chip-state">JSON actif</span>
+               <span class="spec-chip-name">{{ uploadedName }}</span>
+               <button type="button" class="spec-chip-clear" aria-label="Retirer le JSON importé" @click="clearUpload">
+                  <i class="pi pi-times"></i>
+               </button>
+            </span>
+         </div>
 
          <div class="top-actions">
-            <Button icon="pi pi-download" text rounded aria-label="Download specification" v-tooltip.bottom="'Download JSON'" :disabled="!rawText" @click="downloadSpec" />
+            <Button class="portal-link" label="Portail développeur" icon="pi pi-external-link" size="small" as="a" href="https://ezmax.dev" target="_blank" rel="noreferrer" />
             <Button icon="pi pi-github" text rounded aria-label="Open specifications on GitHub" v-tooltip.bottom="'Specs eZmax'" as="a" :href="specsPage" target="_blank" rel="noreferrer" />
             <Button :icon="store.darkMode ? 'pi pi-sun' : 'pi pi-moon'" text rounded :aria-label="store.darkMode ? 'Light mode' : 'Dark mode'" v-tooltip.bottom="store.darkMode ? 'Light mode' : 'Dark mode'" @click="store.darkMode = !store.darkMode" />
             <Button icon="pi pi-cog" text rounded aria-label="Settings" v-tooltip.bottom="'Settings'" @click="openSettings" />
@@ -26,10 +35,11 @@
                      <button v-for="size in textSizes" :key="size.value" type="button" :class="{ active: store.textSize === size.value }" :aria-pressed="store.textSize === size.value" :title="size.name" @click="store.textSize = size.value">{{ size.label }}</button>
                   </div>
                   <p class="settings-title">Display</p>
-                  <label><ToggleSwitch v-model="store.showDescription" /> Descriptions</label>
-                  <label><ToggleSwitch v-model="store.showObjectNames" /> Object names</label>
-                  <label><ToggleSwitch v-model="store.showDeprecated" /> Deprecated operations</label>
-                  <label><ToggleSwitch v-model="store.showProperties" /> Expand advanced properties</label>
+                  <label><ToggleSwitch v-model="store.showDescription" size="small" /> Descriptions</label>
+                  <label><ToggleSwitch v-model="store.showObjectNames" size="small" /> Object names</label>
+                  <label><ToggleSwitch v-model="store.showFieldObject" size="small" /> Show field object</label>
+                  <label><ToggleSwitch v-model="store.showXParameters" size="small" /> Show x parameters</label>
+                  <label><ToggleSwitch v-model="store.showProperties" size="small" /> Expand advanced properties</label>
                </div>
             </Popover>
          </div>
@@ -58,13 +68,14 @@
                   >
                      <i :class="store.expandRoutesOnSearch ? 'pi pi-folder-open' : 'pi pi-folder'"></i>
                   </button>
-                  <button type="button" class="search-advanced" :class="{ active: store.searchOptionsOpen || store.searchInDescription || Boolean(store.searchPropertyFilters.length) }" :aria-expanded="store.searchOptionsOpen" title="Search options" @click="store.searchOptionsOpen = !store.searchOptionsOpen">
+                  <button type="button" class="search-advanced" :class="{ active: store.searchOptionsOpen || store.searchInDescription || store.showDeprecated || Boolean(store.searchPropertyFilters.length) }" :aria-expanded="store.searchOptionsOpen" title="Search options" @click="store.searchOptionsOpen = !store.searchOptionsOpen">
                      <i class="pi pi-sliders-h"></i>
                   </button>
                </div>
                <div v-show="store.searchOptionsOpen" class="search-options">
                   <label><ToggleSwitch v-model="store.searchInName" /> Route name</label>
                   <label><ToggleSwitch v-model="store.searchInDescription" /> Descriptions</label>
+                  <label><ToggleSwitch v-model="store.showDeprecated" /> deprecated</label>
                   <div v-if="groupedXProperties.length" class="prop-filter-wrap">
                      <button type="button" class="prop-filter-trigger" @click="togglePropPicker">
                         <div class="prop-filter-chips">
@@ -92,8 +103,7 @@
                               <div v-for="group in filteredPropGroups" :key="group.label" class="prop-group">
                                  <button type="button" class="prop-group-head" @click="toggleGroupCollapse(group.label)">
                                     <span class="caret" :class="{ open: !collapsedGroups[group.label] }"></span>
-                                    <span class="prop-group-title">{{ group.label }}</span>
-                                    <span class="prop-group-count">{{ group.items.length }}</span>
+                                    <span class="nav-title"><span class="prop-group-title">{{ group.label }}</span><span class="prop-group-count">{{ group.items.length }}</span></span>
                                  </button>
                                  <div v-show="!collapsedGroups[group.label]" class="prop-group-items">
                                     <label v-for="item in group.items" :key="item.key" class="prop-item" :class="{ selected: isFilterSelected(item.key) }">
@@ -110,8 +120,12 @@
                </div>
             </div>
             <div class="sidebar-scroll">
+               <div class="manual-nav">
+                  <RouterLink class="changelog-nav" :class="{ active: route.name === 'home' }" :to="{ name: 'home' }" @click="navOpen = false">Introduction</RouterLink>
+                  <RouterLink class="changelog-nav" :class="{ active: route.name === 'changelog' }" :to="{ name: 'changelog' }" @click="navOpen = false">Changelog</RouterLink>
+               </div>
                <section v-for="group in visibleGroups" :key="group.name" class="nav-group">
-                  <h2><span>{{ group.name }}</span><span class="nav-count">{{ group.tags.length }}</span></h2>
+                  <h2><span class="nav-title">{{ group.name }}<span class="nav-count">{{ group.tags.length }}</span></span></h2>
                   <div v-for="tag in group.tags" :id="'tag-' + tag" :key="tag" class="tag-block">
                      <button type="button" class="tag-head" :class="{ active: isActiveTag(tag) }" @click="onTag(tag)">
                         <span v-if="operationsFor(tag).length" class="caret" :class="{ open: isOpen(tag) }"></span>
@@ -130,8 +144,7 @@
                <section v-if="visibleWebhooks.length" class="nav-group">
                   <button type="button" class="nav-section" @click="store.webhooksOpen = !store.webhooksOpen">
                      <span class="caret" :class="{ open: webhooksExpanded }"></span>
-                     <span>Webhooks</span>
-                     <span class="nav-count">{{ visibleWebhooks.length }}</span>
+                     <span class="nav-title">Webhooks<span class="nav-count">{{ visibleWebhooks.length }}</span></span>
                   </button>
                   <div v-show="webhooksExpanded" class="op-list">
                      <RouterLink v-for="webhook in visibleWebhooks" :key="webhook.name" class="op" :title="webhook.name" :to="{ name: 'webhook', params: { name: webhook.name } }" @click="navOpen = false">
@@ -144,8 +157,7 @@
                <section v-if="schemaCount" class="nav-group">
                   <button type="button" class="nav-section" @click="store.schemasOpen = !store.schemasOpen">
                      <span class="caret" :class="{ open: store.schemasOpen }"></span>
-                     <span>Schemas</span>
-                     <span class="nav-count">{{ schemaMatchCount }}</span>
+                     <span class="nav-title">Schemas<span class="nav-count">{{ schemaMatchCount }}</span></span>
                   </button>
                   <div v-show="store.schemasOpen" class="schema-list">
                      <button v-for="name in schemaMatches" :key="name" type="button" class="schema-hit" @click="openSchema(name)">{{ name }}</button>
@@ -189,8 +201,6 @@ import { computed, markRaw, provide, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import Button from 'primevue/button'
-import Select from 'primevue/select'
-import MultiSelect from 'primevue/multiselect'
 import Popover from 'primevue/popover'
 import TimesIcon from '@primevue/icons/times'
 import ToggleSwitch from 'primevue/toggleswitch'
@@ -207,7 +217,7 @@ import XSchemaView from 'src/components/schema-view/x-schema-view.vue'
 import { buildNav, type NavOperation } from 'src/utils/nav'
 import { queryScore } from 'src/utils/search'
 import { documentKind, formatTag, prepareDocument } from 'src/utils/openapi'
-import { SPECS_PAGE, fallbackRemoteSpecs, internalSpec, specFromGithubFile, type SpecChoice } from 'src/utils/specs'
+import { SPECS_PAGE } from 'src/utils/specs'
 
 const route = useRoute()
 const router = useRouter()
@@ -218,8 +228,11 @@ const rawText = ref('')
 const loading = ref(false)
 const error = ref('')
 const kind = ref<'' | 'openapi' | 'postman' | 'unknown'>('')
-const specs = ref<SpecChoice[]>([internalSpec()])
-const specId = ref(store.specId || 'internal')
+const SESSION_KEY = 'or-upload-session'
+const SPEC_DB = 'or-uploaded-spec'
+const SPEC_STORE = 'specs'
+const specFile = ref<HTMLInputElement>()
+const uploadedName = ref('')
 const theSearch = ref('')
 const navOpen = ref(false)
 const sidebarWidth = ref(320)
@@ -227,7 +240,6 @@ const openTag = ref(typeof route.params.object === 'string' ? route.params.objec
 const searchOpenTags = ref(new Set<string>())
 const searchClosedTags = ref(new Set<string>())
 const settingsPopover = ref<any>()
-const hydrated = ref(false)
 const schemaStack = ref<string[]>([])
 const schemaCurrent = computed(() => schemaStack.value.at(-1) || '')
 const schemaOpen = computed({
@@ -270,11 +282,6 @@ const searchPlaceholder = computed(() => {
    if (store.searchInDescription) return 'Descriptions'
    return 'Route name'
 })
-const groupedSpecs = computed(() => [
-   { label: 'Local', items: specs.value.filter((spec) => spec.group === 'Local') },
-   { label: 'eZmax API', items: specs.value.filter((spec) => spec.group === 'eZmax API') }
-])
-
 const visibleGroups = computed(() => {
    if (!nav.value) return []
    return nav.value.groups
@@ -418,12 +425,6 @@ const visibleWebhooks = computed(() => {
    })
 })
 
-function specFileName(id: string) {
-   if (!id) return 'Spec'
-   if (id === 'internal') return 'internal.json'
-   return id
-}
-
 function operationHaystack(operation: NavOperation) {
    const parts = []
    if (store.searchInName) parts.push(operation.searchName)
@@ -501,16 +502,6 @@ function openSettings(event: Event) {
    settingsPopover.value?.toggle(event)
 }
 
-function downloadSpec() {
-   const blob = new Blob([rawText.value], { type: 'application/json' })
-   const url = URL.createObjectURL(blob)
-   const link = document.createElement('a')
-   link.href = url
-   link.download = specId.value === 'internal' ? 'internal.json' : specId.value
-   link.click()
-   URL.revokeObjectURL(url)
-}
-
 function startResize(event: MouseEvent) {
    const startX = event.clientX
    const startWidth = sidebarWidth.value
@@ -527,31 +518,101 @@ function startResize(event: MouseEvent) {
 
 let requestId = 0
 
-async function loadSpec(id: string) {
-   const choice = specs.value.find((spec) => spec.id === id) || internalSpec()
-   if (choice.disabled) {
-      error.value = 'Cette spécification est trop volumineuse pour être chargée dans le navigateur.'
-      return
+function openSpecDb() {
+   return new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(SPEC_DB, 1)
+      request.onupgradeneeded = () => {
+         if (!request.result.objectStoreNames.contains(SPEC_STORE)) request.result.createObjectStore(SPEC_STORE)
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+   })
+}
+
+function sessionId() {
+   let id = sessionStorage.getItem(SESSION_KEY)
+   if (!id) {
+      id = crypto.randomUUID()
+      sessionStorage.setItem(SESSION_KEY, id)
    }
+   return id
+}
+
+async function saveUpload(name: string, text: string) {
+   const db = await openSpecDb()
+   const id = sessionId()
+   await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(SPEC_STORE, 'readwrite')
+      tx.objectStore(SPEC_STORE).put({ name, text }, id)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+   })
+   db.close()
+}
+
+async function readStoredUpload(): Promise<{ name: string; text: string } | undefined> {
+   const id = sessionStorage.getItem(SESSION_KEY)
+   const db = await openSpecDb()
+   try {
+      const records = await new Promise<{ key: IDBValidKey; value: { name?: string; text?: string } }[]>((resolve, reject) => {
+         const tx = db.transaction(SPEC_STORE, 'readwrite')
+         const store = tx.objectStore(SPEC_STORE)
+         const found: { key: IDBValidKey; value: { name?: string; text?: string } }[] = []
+         const cursor = store.openCursor()
+         cursor.onsuccess = () => {
+            const current = cursor.result
+            if (!current) return
+            if (current.key !== id) store.delete(current.key)
+            else found.push({ key: current.key, value: current.value })
+            current.continue()
+         }
+         tx.oncomplete = () => resolve(found)
+         tx.onerror = () => reject(tx.error)
+      })
+      const value = records[0]?.value
+      if (!value?.name || typeof value.text !== 'string') return undefined
+      return { name: value.name, text: value.text }
+   } finally {
+      db.close()
+   }
+}
+
+async function forgetUpload() {
+   const id = sessionStorage.getItem(SESSION_KEY)
+   sessionStorage.removeItem(SESSION_KEY)
+   if (!id) return
+   const db = await openSpecDb()
+   await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(SPEC_STORE, 'readwrite')
+      tx.objectStore(SPEC_STORE).delete(id)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+   })
+   db.close()
+}
+
+function applyText(text: string) {
+   const json = JSON.parse(text)
+   const detected = documentKind(json)
+   rawText.value = text
+   kind.value = detected
+   documentModel.value = detected === 'openapi' ? markRaw(prepareDocument(json)) : undefined
+   error.value = detected === 'openapi' ? '' : 'Ce fichier n’est pas une spécification OpenAPI.'
+}
+
+async function loadDefault() {
    const current = ++requestId
    loading.value = true
    error.value = ''
+   uploadedName.value = ''
    try {
-      const url = choice.local ? '/specs/internal.json' : choice.url
-      const response = await axios.get(url || '', {
+      const response = await axios.get('/specs/internal.json', {
          responseType: 'text',
          transformResponse: [(data) => data],
          timeout: 120000
       })
       if (current !== requestId) return
-      const text = String(response.data || '')
-      const json = JSON.parse(text)
-      const detected = documentKind(json)
-      rawText.value = text
-      kind.value = detected
-      documentModel.value = detected === 'openapi' ? markRaw(prepareDocument(json)) : undefined
-      if (detected === 'unknown') error.value = 'Ce fichier n’est pas une spécification OpenAPI.'
-      store.specId = id
+      applyText(String(response.data || ''))
    } catch (cause: any) {
       if (current !== requestId) return
       documentModel.value = undefined
@@ -563,24 +624,42 @@ async function loadSpec(id: string) {
    }
 }
 
-async function refreshCatalog() {
+async function onUpload(event: Event) {
+   const input = event.target as HTMLInputElement
+   const file = input.files?.[0]
+   input.value = ''
+   if (!file) return
+   const current = ++requestId
+   loading.value = true
+   error.value = ''
    try {
-      const response = await axios.get('https://api.github.com/repos/eZmaxinc/eZmax-API/contents/specs', {
-         headers: { Accept: 'application/vnd.github+json' },
-         timeout: 20000
-      })
-      const remote = (response.data as any[]).map((file) => specFromGithubFile(file)).filter((spec): spec is SpecChoice => Boolean(spec))
-      specs.value = [internalSpec(), ...remote]
+      const text = await file.text()
+      JSON.parse(text)
+      if (current !== requestId) return
+      let kept = true
+      try {
+         await saveUpload(file.name, text)
+      } catch {
+         kept = false
+      }
+      if (current !== requestId) return
+      uploadedName.value = file.name
+      applyText(text)
+      if (!kept && !error.value) error.value = 'Impossible d’enregistrer le fichier pour cette session.'
+      if (route.name !== 'home') router.push({ name: 'home' })
    } catch {
-      specs.value = [internalSpec(), ...fallbackRemoteSpecs()]
+      if (current !== requestId) return
+      error.value = 'Ce fichier JSON est invalide.'
+   } finally {
+      if (current === requestId) loading.value = false
    }
 }
 
-watch(specId, async (id) => {
-   if (!hydrated.value) return
-   await loadSpec(id)
+async function clearUpload() {
+   await forgetUpload()
+   loadDefault()
    if (route.name !== 'home') router.push({ name: 'home' })
-})
+}
 
 watch(
    () => route.fullPath,
@@ -605,16 +684,20 @@ provide(openApiKey, {
    rawText,
    loading,
    error,
-   kind,
-   specs,
-   specId
+   kind
 })
 
-refreshCatalog().then(async () => {
-   const saved = specs.value.find((spec) => spec.id === specId.value && !spec.disabled)
-   const id = saved?.id || 'internal'
-   specId.value = id
-   await loadSpec(id)
-   hydrated.value = true
-})
+readStoredUpload()
+   .then((storedUpload) => {
+      if (!storedUpload) return loadDefault()
+      uploadedName.value = storedUpload.name
+      try {
+         applyText(storedUpload.text)
+      } catch {
+         forgetUpload()
+         uploadedName.value = ''
+         return loadDefault()
+      }
+   })
+   .catch(() => loadDefault())
 </script>

@@ -1,23 +1,42 @@
 <template>
    <article class="page home-page" v-if="document">
-      <header class="page-header">
+      <header class="page-header home-hero">
          <p class="kicker">{{ document.openapi || document.swagger }}</p>
          <h2>{{ document.info?.title }}</h2>
          <p v-if="document.info?.version" class="lede">Version {{ document.info.version }}</p>
+         <section class="intro-panel">
+            <p class="intro-lead">Welcome to the eZmax API Reference.</p>
+            <p>The API provides programmatic access to the eZmax and eZsign platforms, allowing applications and services to integrate with and automate platform capabilities.</p>
+            <p>This reference describes the API contract, including endpoints, HTTP methods, parameters, request and response schemas, and response codes.</p>
+            <p class="intro-links">For integration guides, authentication, environments, and examples, visit <a href="https://ezmax.dev" target="_blank" rel="noreferrer">ezmax.dev</a>.</p>
+         </section>
       </header>
 
-      <XMarkdown v-if="document.info?.description" :source="document.info.description" />
+      <section class="stat-row kpi-row" aria-label="Overview">
+         <div class="stat">
+            <strong>{{ operations }}</strong>
+            <span>Operations</span>
+         </div>
+         <div class="stat">
+            <strong>{{ schemas }}</strong>
+            <span>Schemas</span>
+         </div>
+         <div class="stat">
+            <strong>{{ webhooks }}</strong>
+            <span>Webhooks</span>
+         </div>
+         <div class="stat">
+            <strong>{{ groups }}</strong>
+            <span>Tag groups</span>
+         </div>
+      </section>
 
-      <div class="stat-row">
-         <div class="stat"><strong>{{ operations }}</strong><span>Operations</span></div>
-         <div class="stat"><strong>{{ schemas }}</strong><span>Schemas</span></div>
-         <div class="stat"><strong>{{ webhooks }}</strong><span>Webhooks</span></div>
-         <div class="stat"><strong>{{ groups }}</strong><span>Tag groups</span></div>
-      </div>
-
-      <section v-if="serverList.length" class="block">
-         <h3>Servers</h3>
-         <div class="card-grid">
+      <section v-if="serverList.length" class="home-section">
+         <div class="home-section-head">
+            <i class="pi pi-server" aria-hidden="true"></i>
+            <h3>Servers</h3>
+         </div>
+         <div class="home-card-grid">
             <article v-for="server in serverList" :key="server.url" class="info-card">
                <code>{{ server.url }}</code>
                <p>{{ server.description }}</p>
@@ -33,9 +52,12 @@
          </div>
       </section>
 
-      <section v-if="securitySchemes.length" class="block">
-         <h3>Authentication</h3>
-         <div class="card-grid">
+      <section v-if="securitySchemes.length" class="home-section">
+         <div class="home-section-head">
+            <i class="pi pi-lock" aria-hidden="true"></i>
+            <h3>Authentication</h3>
+         </div>
+         <div class="home-card-grid home-auth-grid">
             <article v-for="scheme in securitySchemes" :key="scheme.name" class="info-card">
                <div class="card-title">
                   <Tag :value="scheme.name" />
@@ -46,7 +68,7 @@
          </div>
       </section>
 
-      <section v-if="document.externalDocs?.url || document.info?.contact || document.info?.license" class="block meta-row">
+      <section v-if="document.externalDocs?.url || document.info?.contact || document.info?.license" class="home-section meta-row">
          <a v-if="document.info?.contact?.url" :href="document.info.contact.url" target="_blank" rel="noreferrer">{{ document.info.contact.name || document.info.contact.email || 'Contact' }}</a>
          <a v-else-if="document.info?.contact?.email" :href="'mailto:' + document.info.contact.email">{{ document.info.contact.email }}</a>
          <a v-if="document.info?.license?.url" :href="document.info.license.url" target="_blank" rel="noreferrer">{{ document.info.license.name || 'License' }}</a>
@@ -54,8 +76,11 @@
          <a v-if="document.externalDocs?.url" :href="document.externalDocs.url" target="_blank" rel="noreferrer">{{ document.externalDocs.description || 'External docs' }}</a>
       </section>
 
-      <section v-for="group in tagGroups" :key="group.name" class="block">
-         <h3>{{ group.name }}</h3>
+      <section v-for="group in tagGroups" :key="group.name" class="home-section">
+         <div class="home-section-head">
+            <i class="pi pi-folder" aria-hidden="true"></i>
+            <span class="home-title"><h3>{{ group.name }}</h3><span class="home-count">{{ group.tags.length }}</span></span>
+         </div>
          <div class="tag-cloud">
             <RouterLink v-for="tag in group.tags" :key="tag" :to="{ name: 'page-details', params: { object: tag } }">{{ formatTag(tag) }}</RouterLink>
          </div>
@@ -70,7 +95,6 @@ import { useOpenApi } from 'src/composables/use-openapi'
 import { formatTag, tagGroupsOf, webhooksOf } from 'src/utils/openapi'
 import { operationCount } from 'src/utils/nav'
 import { serverOptions } from 'src/utils/samples'
-import XMarkdown from 'src/components/markdown-view/x-markdown.vue'
 
 const { document } = useOpenApi()
 

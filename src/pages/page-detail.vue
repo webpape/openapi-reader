@@ -27,7 +27,7 @@
             <Button class="copy-btn" icon="pi pi-copy" text rounded size="small" aria-label="Copy path" @click="copyPath" />
          </div>
 
-         <XMarkdown v-if="current.operation.description" :source="current.operation.description" />
+         <XMarkdown v-if="current.operation.description" class="description" :source="current.operation.description" />
 
          <section v-if="extensions.lists.length" class="section-card">
             <div class="section-head">
@@ -65,14 +65,16 @@
                <button v-if="store.showObjectNames && request.schemaName" type="button" class="schema-anchor" @click="openSchema(request.schemaName)">{{ request.schemaName }}</button>
                <span v-else-if="store.showObjectNames && request.typeLabel" class="schema-anchor plain">{{ request.typeLabel }}</span>
                <Select v-if="request.contentTypes.length > 1" :model-value="contentType || request.contentType" :options="request.contentTypes" class="content-select" @update:model-value="contentType = $event" />
-               <button type="button" class="explorer-toggle" :class="{ active: requiredOnlyRequest }" :aria-pressed="requiredOnlyRequest" @click="requiredOnlyRequest = !requiredOnlyRequest">Required</button>
-               <IconField class="filter-field">
-                  <InputIcon class="pi pi-search" />
-                  <InputText v-model="filterRequest" placeholder="Filter" size="small" />
-                  <button v-if="filterRequest" type="button" class="search-clear" aria-label="Clear filter" @click="filterRequest = ''">
-                     <i class="pi pi-times"></i>
-                  </button>
-               </IconField>
+               <div class="section-tools">
+                  <button type="button" class="explorer-toggle required-toggle" :class="{ active: requiredOnlyRequest }" :aria-pressed="requiredOnlyRequest" @click="requiredOnlyRequest = !requiredOnlyRequest"><span class="required-switch" aria-hidden="true"></span>Only Required Field</button>
+                  <IconField class="filter-field">
+                     <InputIcon class="pi pi-search" />
+                     <InputText v-model="filterRequest" placeholder="Filter" size="small" />
+                     <button v-if="filterRequest" type="button" class="search-clear" aria-label="Clear filter" @click="filterRequest = ''">
+                        <i class="pi pi-times"></i>
+                     </button>
+                  </IconField>
+               </div>
             </div>
             <div v-show="showSectionContent('request', filteredRequest)">
                <p v-if="request.description" class="section-note">{{ request.description }}</p>
@@ -87,14 +89,16 @@
                   <span class="caret-disc"><span class="caret" :class="{ open: expanded.response }"></span></span>
                   <span>Responses</span>
                </button>
-               <button type="button" class="explorer-toggle" :class="{ active: requiredOnlyResponse }" :aria-pressed="requiredOnlyResponse" @click="requiredOnlyResponse = !requiredOnlyResponse">Required</button>
-               <IconField class="filter-field">
-                  <InputIcon class="pi pi-search" />
-                  <InputText v-model="filterResponse" placeholder="Filter" size="small" />
-                  <button v-if="filterResponse" type="button" class="search-clear" aria-label="Clear filter" @click="filterResponse = ''">
-                     <i class="pi pi-times"></i>
-                  </button>
-               </IconField>
+               <div class="section-tools">
+                  <button type="button" class="explorer-toggle required-toggle" :class="{ active: requiredOnlyResponse }" :aria-pressed="requiredOnlyResponse" @click="requiredOnlyResponse = !requiredOnlyResponse"><span class="required-switch" aria-hidden="true"></span>Only Required Field</button>
+                  <IconField class="filter-field">
+                     <InputIcon class="pi pi-search" />
+                     <InputText v-model="filterResponse" placeholder="Filter" size="small" />
+                     <button v-if="filterResponse" type="button" class="search-clear" aria-label="Clear filter" @click="filterResponse = ''">
+                        <i class="pi pi-times"></i>
+                     </button>
+                  </IconField>
+               </div>
             </div>
             <XSchemaTree v-show="showSectionContent('response', filteredResponse)" :nodes="filteredResponse" :expanded="expanded.response" :expand-token="tokens.response" />
          </section>
@@ -107,14 +111,14 @@
                   <code>{{ callback.name }}</code>
                </div>
                <p class="section-note">{{ callback.expression }}</p>
-               <XMarkdown v-if="callback.description" :source="callback.description" />
+               <XMarkdown v-if="callback.description" class="description" :source="callback.description" />
                <XSchemaTree v-if="callback.body" :nodes="callback.body.nodes" />
             </article>
          </section>
       </div>
 
       <div class="samples-slot">
-         <XSamplesPanel :method="current.method" :route="current.route" :webhook="current.webhook" :servers="servers" :security="security" :parameters="parameters" :request-example="request?.example" :responses="sampleResponses" :code-samples="codeSamples" />
+         <XSamplesPanel :method="current.method" :route="current.route" :webhook="current.webhook" :servers="servers" :environment-values="environmentValues" :security="security" :parameters="parameters" :request-example="request?.example" :responses="sampleResponses" :code-samples="codeSamples" />
       </div>
    </article>
 
@@ -123,7 +127,7 @@
          <p class="kicker">Tag</p>
          <h2>{{ tagTitle }}</h2>
       </header>
-      <XMarkdown v-if="tagDescription" :source="tagDescription" />
+      <XMarkdown v-if="tagDescription" class="description" :source="tagDescription" />
       <div class="tag-operations">
          <RouterLink v-for="operation in tagOperations" :key="operation.method + operation.operationId" class="op-row" :title="operation.route" :to="{ name: 'page-details', params: { object: tagName, operation: operation.operationId } }">
             <span class="method" :class="'m-' + operation.method">{{ operation.method }}</span>
@@ -157,8 +161,8 @@ import { useSchemaDialog } from 'src/composables/use-schema-dialog'
 import { useGlobalStore } from 'src/stores/global'
 import { buildNav, findOperation, findWebhook } from 'src/utils/nav'
 import { flagSeverity, formatTag, vendorExtensions } from 'src/utils/openapi'
-import { operationForLlm, securityOptions, serverOptions } from 'src/utils/samples'
-import { bodyModel, callbackModels, filterNodes, listParameters, parameterSections, responseModels, type SchemaNode } from 'src/utils/schema-tree'
+import { chooseServers, groupNameForTag, infrastructureEnvironmentValues, operationForLlm, securityOptions, serverOptions } from 'src/utils/samples'
+import { bodyModel, callbackModels, filterNodes, listParameters, parameterSections, responseModels, statusTone, type SchemaNode } from 'src/utils/schema-tree'
 
 const route = useRoute()
 const toast = useToast()
@@ -193,7 +197,10 @@ const parameterBlocks = computed(() => parameterSections(parameters.value))
 const request = computed(() => (current.value ? bodyModel(current.value.operation.requestBody, document.value, contentType.value || undefined) : undefined))
 const responses = computed(() => (current.value ? responseModels(current.value.operation.responses, document.value) : []))
 const callbacks = computed(() => (current.value?.operation?.callbacks ? callbackModels(current.value.operation.callbacks, document.value) : []))
-const servers = computed(() => serverOptions(current.value?.operation?.servers || current.value?.pathItem?.servers || document.value?.servers))
+const serversRaw = computed(() => chooseServers(document.value, current.value?.pathItem, current.value?.operation, groupNameForTag(document.value, tagName.value)))
+const servers = computed(() => serverOptions(serversRaw.value))
+/** Union of `sInfrastructureenvironmenttypeDescription.enum` across root `servers` (canonical list), not the per-route subset from chooseServers. */
+const environmentValues = computed(() => infrastructureEnvironmentValues(document.value?.servers))
 const security = computed(() => securityOptions(current.value?.operation?.security !== undefined ? current.value.operation.security : document.value?.security, document.value?.components?.securitySchemes))
 const codeSamples = computed(() => current.value?.operation?.['x-codeSamples'] || current.value?.operation?.['x-code-samples'] || [])
 
@@ -201,6 +208,7 @@ const responseNodes = computed<SchemaNode[]>(() =>
    responses.value.map((response) => ({
       key: response.status,
       label: response.status,
+      labelTone: statusTone(response.status),
       typeLabel: response.typeLabel,
       schemaName: response.schemaName,
       schemaNames: response.schemaNames,
@@ -211,6 +219,7 @@ const responseNodes = computed<SchemaNode[]>(() =>
       readOnly: false,
       writeOnly: false,
       enumValues: [],
+      extensions: [],
       note: [response.contentType, response.stream ? 'stream' : '', response.headers.length ? `Headers: ${response.headers.map((header) => header.name).join(', ')}` : '', response.links.length ? `Links: ${response.links.map((link) => link.name).join(', ')}` : '', response.others.length ? `Also: ${response.others.join(', ')}` : ''].filter(Boolean).join(' · '),
       children: response.nodes
    }))

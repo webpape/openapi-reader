@@ -11,6 +11,11 @@ const routes: RouteRecordRaw[] = [
             component: () => import('src/pages/page-home.vue')
          },
          {
+            path: 'changelog',
+            name: 'changelog',
+            component: () => import('src/pages/page-changelog.vue')
+         },
+         {
             path: 'schema/:name',
             name: 'schema',
             component: () => import('src/pages/page-schema.vue')
