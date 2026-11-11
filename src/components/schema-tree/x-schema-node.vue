@@ -15,6 +15,11 @@
          <span v-if="node.deprecated" class="chip chip-warn">deprecated</span>
          <span v-if="node.recursive" class="chip chip-warn">recursive</span>
          <span v-if="node.discriminator" class="chip">discriminator: {{ node.discriminator }}</span>
+         <span v-if="(node.minItems != null && node.minItems > 0) || node.maxItems != null" class="chip chip-constraint">
+            <template v-if="node.minItems != null && node.minItems > 0 && node.maxItems != null">{{ node.minItems }}…{{ node.maxItems }} items</template>
+            <template v-else-if="node.minItems != null && node.minItems > 0">≥ {{ node.minItems }} {{ node.minItems === 1 ? 'item' : 'items' }}</template>
+            <template v-else>≤ {{ node.maxItems }} items</template>
+         </span>
          <XBadgeLength :min-length="node.minLength" :max-length="node.maxLength" />
          <XBadgeMinimumMaximum :minimum="node.minimum" :maximum="node.maximum" :min-exclusive="node.minExclusive" :max-exclusive="node.maxExclusive" />
          <XBadgePattern :pattern="node.pattern" />

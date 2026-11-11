@@ -54,6 +54,14 @@ app.use(
    })
 )
 
-registerSW({ immediate: true })
+if (import.meta.env.DEV) {
+   if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+         for (const reg of registrations) reg.unregister()
+      })
+   }
+} else {
+   registerSW({ immediate: true })
+}
 
 app.mount('#app')

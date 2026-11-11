@@ -6,6 +6,7 @@ export interface OpenApiContext {
    loading: Ref<boolean>
    error: Ref<string>
    kind: Ref<'' | 'openapi' | 'postman' | 'unknown'>
+   uploadedName?: Ref<string>
 }
 
 export const openApiKey: InjectionKey<OpenApiContext> = Symbol('openapi')

@@ -29,13 +29,13 @@ const routes: RouteRecordRaw[] = [
             path: ':object/:operation?',
             name: 'page-details',
             component: () => import('src/pages/page-detail.vue')
+         },
+         {
+            path: ':catchAll(.*)*',
+            name: 'not-found',
+            component: () => import('src/pages/page-error-404.vue')
          }
       ]
-   },
-   {
-      path: '/:catchAll(.*)*',
-      name: 'not-found',
-      component: () => import('src/pages/page-error-404.vue')
    }
 ]
 

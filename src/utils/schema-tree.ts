@@ -17,6 +17,8 @@ export interface SchemaNode {
    pattern?: string
    minLength?: number
    maxLength?: number
+   minItems?: number
+   maxItems?: number
    minimum?: number
    maximum?: number
    minExclusive?: boolean
@@ -115,7 +117,7 @@ export function mergedSchema(schema: any, seen = new Set<any>()): any {
       if (inner.$schemaName) names.push(inner.$schemaName)
       if (inner.properties) Object.assign(properties, inner.properties)
       for (const item of inner.required || []) required.add(item)
-      for (const key of ['type', 'format', 'description', 'pattern', 'example', 'minimum', 'maximum', 'minLength', 'maxLength', 'nullable', 'title']) {
+      for (const key of ['type', 'format', 'description', 'pattern', 'example', 'minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'nullable', 'title']) {
          if (merged[key] === undefined && inner[key] !== undefined) merged[key] = inner[key]
       }
       if (!merged.enum && inner.enum) merged.enum = inner.enum
@@ -221,6 +223,8 @@ export function buildNode(label: string, schema: any, required: boolean, key: st
       pattern: schema?.pattern || merged.pattern,
       minLength: schema?.minLength ?? merged.minLength,
       maxLength: schema?.maxLength ?? merged.maxLength,
+      minItems: schema?.minItems ?? merged.minItems,
+      maxItems: schema?.maxItems ?? merged.maxItems,
       minimum: schema?.minimum ?? schema?.exclusiveMinimum ?? merged.minimum ?? merged.exclusiveMinimum,
       maximum: schema?.maximum ?? schema?.exclusiveMaximum ?? merged.maximum ?? merged.exclusiveMaximum,
       minExclusive: schema?.exclusiveMinimum !== undefined && schema?.minimum === undefined,

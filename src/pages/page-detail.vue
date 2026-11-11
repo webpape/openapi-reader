@@ -122,7 +122,7 @@
       </div>
    </article>
 
-   <article v-else-if="tagName" class="page">
+   <article v-else-if="isTagView" class="page">
       <header class="page-header">
          <p class="kicker">Tag</p>
          <h2>{{ tagTitle }}</h2>
@@ -138,7 +138,7 @@
    </article>
 
    <article v-else class="page">
-      <Message severity="warn" :closable="false">This operation is not in the current specification.</Message>
+      <XNotFound :missing="notFoundTarget" />
    </article>
 </template>
 
@@ -156,6 +156,7 @@ import { useToast } from 'primevue/usetoast'
 import XMarkdown from 'src/components/markdown-view/x-markdown.vue'
 import XSamplesPanel from 'src/components/samples-panel/x-samples-panel.vue'
 import XSchemaTree from 'src/components/schema-tree/x-schema-tree.vue'
+import XNotFound from 'src/components/not-found/x-not-found.vue'
 import { useOpenApi } from 'src/composables/use-openapi'
 import { useSchemaDialog } from 'src/composables/use-schema-dialog'
 import { useGlobalStore } from 'src/stores/global'
@@ -187,7 +188,16 @@ const tagDescription = computed(() => tagObject.value?.description || '')
 const current = computed(() => {
    if (!document.value) return undefined
    if (route.name === 'webhook') return findWebhook(document.value, String(route.params.name || ''))
-   if (typeof route.params.operation === 'string') return findOperation(document.value, route.params.operation)
+   if (typeof route.params.operation === 'string') {
+      const found = findOperation(document.value, route.params.operation)
+      if (!found) return undefined
+      if (typeof route.params.object === 'string' && route.params.object) {
+         const opTags: string[] = found.operation.tags?.length ? found.operation.tags : ['default']
+         const matchesTag = opTags.some((t) => t.toLowerCase() === (route.params.object as string).toLowerCase())
+         if (!matchesTag) return undefined
+      }
+      return found
+   }
    return undefined
 })
 
@@ -231,6 +241,21 @@ const sampleResponses = computed(() => responses.value.map((response) => ({ stat
 const tagOperations = computed(() => {
    const model = document.value ? buildNav(document.value) : undefined
    return (model?.byTag[tagName.value] || []).filter((operation) => store.showDeprecated || !operation.deprecated)
+})
+
+const isTagView = computed(() => {
+   if (route.params.operation) return false
+   return Boolean(tagName.value && (tagOperations.value.length > 0 || tagObject.value))
+})
+
+const notFoundTarget = computed(() => {
+   if (typeof route.params.object === 'string' && typeof route.params.operation === 'string') {
+      return `${route.params.object}/${route.params.operation}`
+   }
+   if (typeof route.params.operation === 'string') return route.params.operation
+   if (typeof route.params.object === 'string') return route.params.object
+   if (typeof route.params.name === 'string') return route.params.name
+   return route.fullPath
 })
 
 watch(

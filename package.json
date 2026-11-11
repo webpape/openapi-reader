@@ -10,8 +10,8 @@
       "lint": "eslint --ext .js,.ts,.vue ./",
       "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
       "test": "echo \"No test specified\" && exit 0",
-      "dev": "yarn import && vite",
-      "build": "yarn import && vite build",
+      "dev": "vite",
+      "build": "vite build",
       "build:ezmax": "yarn build && cp -r dist G:/ezmax.api/appcluster01/api-reader/dist",
       "preview": "vite preview",
       "typecheck": "vue-tsc --noEmit"

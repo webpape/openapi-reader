@@ -8,8 +8,22 @@ export interface SpecChoice {
    size?: number
 }
 
-export const SPECS_PAGE = 'https://github.com/eZmaxinc/eZmax-API/tree/master/specs'
-const RAW_BASE = 'https://raw.githubusercontent.com/eZmaxinc/eZmax-API/master/specs/'
+export type SpecBranch = 'master' | 'develop'
+
+export const DEFAULT_BRANCH: SpecBranch = 'master'
+export const SPEC_BRANCH_STORAGE_KEY = 'or-spec-branch'
+export const SPEC_FILES_TO_TRY = ['ezmax.openapi.json', 'ezmax.v1.3.json'] as const
+
+export function specsBranchUrl(branch: SpecBranch) {
+   return `https://github.com/eZmaxinc/eZmax-API/tree/${branch}/specs`
+}
+
+export function rawSpecBranchUrl(branch: SpecBranch, fileName: string) {
+   return `https://raw.githubusercontent.com/eZmaxinc/eZmax-API/${branch}/specs/${encodeURIComponent(fileName)}`
+}
+
+export const SPECS_PAGE = specsBranchUrl(DEFAULT_BRANCH)
+const RAW_BASE = `https://raw.githubusercontent.com/eZmaxinc/eZmax-API/${DEFAULT_BRANCH}/specs/`
 const MAX_SPEC_BYTES = 8 * 1024 * 1024
 
 const FALLBACK_FILES = ['ezmax.v1.0.json', 'ezmax.v1.1.json', 'ezmax.v1.2.json', 'ezmax.v1.3.json']

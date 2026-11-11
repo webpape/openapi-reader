@@ -31,6 +31,25 @@ function tryApiProxy(): Plugin {
          res.end('Invalid or missing url (http/https only)')
          return
       }
+
+      let parsedTargetUrl: URL
+      try {
+         parsedTargetUrl = new URL(targetUrl)
+      } catch {
+         res.statusCode = 400
+         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+         res.end('Invalid URL format')
+         return
+      }
+
+      const host = parsedTargetUrl.hostname.toLowerCase()
+      const isAllowedHost = host === 'ezmax.com' || host.endsWith('.ezmax.com')
+      if (!isAllowedHost) {
+         res.statusCode = 403
+         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+         res.end('Seuls les appels vers ezmax.com (*.ezmax.com) sont autorisés.')
+         return
+      }
       const method = (payload.method || 'GET').toUpperCase()
       const forwardHeaders = new Headers()
       const skip = new Set(['host', 'connection', 'content-length', 'transfer-encoding', 'keep-alive'])
@@ -96,7 +115,7 @@ function serveSpecs(): Plugin {
          server.middlewares.use(handler)
       },
       generateBundle() {
-         for (const name of ['internal.json', 'changelog.md']) {
+         for (const name of ['changelog.md']) {
             const file = path.join(root, 'specs', name)
             if (!fs.existsSync(file)) continue
             this.emitFile({
@@ -117,9 +136,7 @@ export default defineConfig({
       VitePWA({
          registerType: 'autoUpdate',
          devOptions: {
-            enabled: true,
-            type: 'module',
-            suppressWarnings: true
+            enabled: false
          },
          includeAssets: ['favicon.ico', 'icons/*.png', 'icons/*.svg', 'logo-dark.svg', 'logo-light.svg'],
          manifest: {
@@ -152,6 +169,7 @@ export default defineConfig({
             ]
          },
          workbox: {
+            cleanupOutdatedCaches: true,
             maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
             globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ttf,woff,eot}']
          }
@@ -163,9 +181,11 @@ export default defineConfig({
       }
    },
    server: {
-      port: 4123
+      port: 4123,
+      host: true
    },
    preview: {
-      port: 4123
+      port: 4124,
+      host: true
    }
 })

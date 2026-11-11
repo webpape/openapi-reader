@@ -10,10 +10,45 @@
 
          <div class="spec-upload">
             <input ref="specFile" type="file" accept="application/json,.json" class="spec-file" aria-label="Importer un JSON" @change="onUpload" />
-            <button v-if="!uploadedName" type="button" class="spec-upload-btn" :disabled="loading && !documentModel" @click="specFile?.click()">
-               <i class="pi pi-upload"></i>
-               <span>Upload JSON Spec</span>
-            </button>
+            <div v-if="!uploadedName" class="spec-actions">
+               <button type="button" class="spec-upload-btn" :disabled="loading && !documentModel" @click="specFile?.click()">
+                  <i class="pi pi-upload"></i>
+                  <span>Upload JSON Spec</span>
+               </button>
+               <button
+                  type="button"
+                  class="spec-branch-btn"
+                  :disabled="loading"
+                  title="Choose specification branch"
+                  aria-label="Choose specification branch"
+                  @click="openBranchMenu"
+               >
+                  <i :class="loading ? 'pi pi-spin pi-spinner' : 'pi pi-code-fork'"></i>
+                  <span class="spec-branch-name">{{ currentBranchLabel }}</span>
+                  <i class="pi pi-chevron-down spec-branch-caret"></i>
+               </button>
+               <Popover ref="branchPopover" class="branch-popover" @show="onBranchPopoverShow">
+                  <div class="spec-branch-menu">
+                     <div class="spec-branch-menu-head">
+                        <span>Branch / Environment</span>
+                     </div>
+                     <button
+                        v-for="branch in availableBranches"
+                        :key="branch.id"
+                        type="button"
+                        class="spec-branch-menu-item"
+                        :class="{ active: currentBranch === branch.id }"
+                        @click="selectBranch(branch.id)"
+                     >
+                        <div class="spec-branch-menu-item-info">
+                           <span class="spec-branch-menu-item-name">{{ branch.label }}</span>
+                           <span class="spec-branch-menu-item-desc">{{ branch.description }}</span>
+                        </div>
+                        <i v-if="currentBranch === branch.id" class="pi pi-check spec-branch-menu-item-check"></i>
+                     </button>
+                  </div>
+               </Popover>
+            </div>
             <span v-else class="spec-chip" :title="'JSON actif : ' + uploadedName">
                <span class="spec-chip-state">JSON actif</span>
                <span class="spec-chip-name">{{ uploadedName }}</span>
@@ -217,7 +252,14 @@ import XSchemaView from 'src/components/schema-view/x-schema-view.vue'
 import { buildNav, type NavOperation } from 'src/utils/nav'
 import { queryScore } from 'src/utils/search'
 import { documentKind, formatTag, prepareDocument } from 'src/utils/openapi'
-import { SPECS_PAGE } from 'src/utils/specs'
+import {
+   DEFAULT_BRANCH,
+   SPEC_BRANCH_STORAGE_KEY,
+   SPEC_FILES_TO_TRY,
+   rawSpecBranchUrl,
+   specsBranchUrl,
+   type SpecBranch
+} from 'src/utils/specs'
 
 const route = useRoute()
 const router = useRouter()
@@ -262,7 +304,55 @@ function backSchema() {
 function closeSchema() {
    schemaStack.value = []
 }
-const specsPage = SPECS_PAGE
+
+const currentBranch = ref<SpecBranch>(readInitialBranch())
+
+function readInitialBranch(): SpecBranch {
+   const saved = sessionStorage.getItem(SPEC_BRANCH_STORAGE_KEY)
+   return saved === 'develop' ? 'develop' : DEFAULT_BRANCH
+}
+
+const currentBranchLabel = computed(() => (currentBranch.value === 'develop' ? 'Develop' : 'Master'))
+const otherBranchLabel = computed(() => (currentBranch.value === 'develop' ? 'Master' : 'Develop'))
+const specsPage = computed(() => specsBranchUrl(currentBranch.value))
+
+const branchPopover = ref<any>()
+
+const availableBranches: { id: SpecBranch; label: string; description: string }[] = [
+   { id: 'master', label: 'Master', description: 'Main branch (stable)' },
+   { id: 'develop', label: 'Develop', description: 'Development branch' }
+]
+
+const branchBtnEl = ref<HTMLElement | null>(null)
+
+function openBranchMenu(event: Event) {
+   branchBtnEl.value = event.currentTarget as HTMLElement
+   branchPopover.value?.toggle(event)
+}
+
+function onBranchPopoverShow() {
+   requestAnimationFrame(() => {
+      const container = (branchPopover.value as any)?.container as HTMLElement
+      const btn = branchBtnEl.value
+      if (container && btn) {
+         const btnRect = btn.getBoundingClientRect()
+         const popRect = container.getBoundingClientRect()
+         const arrowCenter = btnRect.left + btnRect.width / 2 - popRect.left
+         container.style.setProperty('--branch-arrow-left', `${Math.round(arrowCenter)}px`)
+      }
+   })
+}
+
+async function selectBranch(branch: SpecBranch) {
+   branchPopover.value?.hide()
+   if (currentBranch.value === branch) return
+   if (loading.value) return
+   currentBranch.value = branch
+   sessionStorage.setItem(SPEC_BRANCH_STORAGE_KEY, branch)
+   await loadDefault()
+   if (route.name !== 'home') router.push({ name: 'home' })
+}
+
 const textSizes = [
    { value: 0, label: 'S', name: 'Compact' },
    { value: 1, label: 'M', name: 'Regular' },
@@ -310,9 +400,17 @@ const groupedXProperties = computed(() => {
    if (!nav.value) return []
    const propertyCounts = new Map<string, number>()
    const valueCounts = new Map<string, Map<string, number>>()
+   const seenOps = new Set<string>()
+   const visibleTagSet = new Set<string>(nav.value.groups.flatMap((group) => group.tags))
 
-   for (const ops of Object.values(nav.value.byTag)) {
+   for (const [tag, ops] of Object.entries(nav.value.byTag)) {
+      if (!visibleTagSet.has(tag)) continue
       for (const op of ops) {
+         if (!store.showDeprecated && op.deprecated) continue
+         const opKey = `${op.method}:${op.route}`
+         if (seenOps.has(opKey)) continue
+         seenOps.add(opKey)
+
          for (const item of op.xProperties || []) {
             if (item.includes(':')) {
                const colonIdx = item.indexOf(':')
@@ -446,8 +544,17 @@ function tagVisible(tag: string) {
 function operationsFor(tag: string) {
    let operations = (nav.value?.byTag[tag] || []).filter((operation) => store.showDeprecated || !operation.deprecated)
    if (store.searchPropertyFilters.length) {
+      const byGroup = new Map<string, string[]>()
+      for (const filterKey of store.searchPropertyFilters) {
+         const prop = filterKey.includes(':') ? filterKey.slice(0, filterKey.indexOf(':')) : filterKey
+         if (!byGroup.has(prop)) byGroup.set(prop, [])
+         byGroup.get(prop)!.push(filterKey)
+      }
       operations = operations.filter((op) => {
-         return store.searchPropertyFilters.every((filterKey) => op.xProperties?.includes(filterKey))
+         for (const groupKeys of byGroup.values()) {
+            if (!groupKeys.some((k) => op.xProperties?.includes(k))) return false
+         }
+         return true
       })
    }
    if (!needle.value) return operations
@@ -597,7 +704,7 @@ function applyText(text: string) {
    rawText.value = text
    kind.value = detected
    documentModel.value = detected === 'openapi' ? markRaw(prepareDocument(json)) : undefined
-   error.value = detected === 'openapi' ? '' : 'Ce fichier n’est pas une spécification OpenAPI.'
+   error.value = detected === 'openapi' ? '' : 'This file is not an OpenAPI specification.'
 }
 
 async function loadDefault() {
@@ -605,23 +712,47 @@ async function loadDefault() {
    loading.value = true
    error.value = ''
    uploadedName.value = ''
-   try {
-      const response = await axios.get('/specs/internal.json', {
-         responseType: 'text',
-         transformResponse: [(data) => data],
-         timeout: 120000
-      })
+   const branch = currentBranch.value
+
+   let loadedText = ''
+
+   for (const fileName of SPEC_FILES_TO_TRY) {
       if (current !== requestId) return
-      applyText(String(response.data || ''))
-   } catch (cause: any) {
-      if (current !== requestId) return
+      const url = rawSpecBranchUrl(branch, fileName)
+      try {
+         const response = await axios.get(url, {
+            responseType: 'text',
+            transformResponse: [(data) => data],
+            timeout: 60000
+         })
+         if (response.status === 200 && response.data) {
+            loadedText = String(response.data)
+            break
+         }
+      } catch {
+         // Try fallback file if primary does not exist
+      }
+   }
+
+   if (current !== requestId) return
+
+   if (loadedText) {
+      try {
+         applyText(loadedText)
+      } catch (cause: any) {
+         documentModel.value = undefined
+         rawText.value = ''
+         kind.value = ''
+         error.value = cause?.message || 'Invalid specification content.'
+      }
+   } else {
       documentModel.value = undefined
       rawText.value = ''
       kind.value = ''
-      error.value = cause?.message || 'Impossible de charger la spécification.'
-   } finally {
-      if (current === requestId) loading.value = false
+      error.value = `Unable to load specification for branch "${branch}" (files ezmax.openapi.json and ezmax.v1.3.json not found).`
    }
+
+   if (current === requestId) loading.value = false
 }
 
 async function onUpload(event: Event) {
@@ -645,11 +776,11 @@ async function onUpload(event: Event) {
       if (current !== requestId) return
       uploadedName.value = file.name
       applyText(text)
-      if (!kept && !error.value) error.value = 'Impossible d’enregistrer le fichier pour cette session.'
+      if (!kept && !error.value) error.value = 'Failed to store file for this session.'
       if (route.name !== 'home') router.push({ name: 'home' })
    } catch {
       if (current !== requestId) return
-      error.value = 'Ce fichier JSON est invalide.'
+      error.value = 'This JSON file is invalid.'
    } finally {
       if (current === requestId) loading.value = false
    }
@@ -684,7 +815,8 @@ provide(openApiKey, {
    rawText,
    loading,
    error,
-   kind
+   kind,
+   uploadedName
 })
 
 readStoredUpload()
