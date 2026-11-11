@@ -1,4 +1,4 @@
-# OpenAPI Reader
+# eZmax API Reference
 
 Lecteur OpenAPI en Vue 3, Vite et PrimeVue.
 

@@ -140,8 +140,8 @@ export default defineConfig({
          },
          includeAssets: ['favicon.ico', 'icons/*.png', 'icons/*.svg', 'logo-dark.svg', 'logo-light.svg'],
          manifest: {
-            name: 'OpenAPI Reader',
-            short_name: 'OpenAPI Reader',
+            name: 'eZmax API Reference',
+            short_name: 'eZmax API Reference',
             description: 'Fast and responsive OpenAPI specification reader and explorer',
             theme_color: '#223449',
             background_color: '#18181b',

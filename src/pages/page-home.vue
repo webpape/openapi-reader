@@ -8,7 +8,11 @@
             <p class="intro-lead">Welcome to the eZmax API Reference.</p>
             <p>The API provides programmatic access to the eZmax and eZsign platforms, allowing applications and services to integrate with and automate platform capabilities.</p>
             <p>This reference describes the API contract, including endpoints, HTTP methods, parameters, request and response schemas, and response codes.</p>
-            <p class="intro-links">For integration guides, authentication, environments, and examples, visit <a href="https://ezmax.dev" target="_blank" rel="noreferrer">ezmax.dev</a>.</p>
+            <p class="intro-links">
+               For integration guides, authentication, environments, and examples, visit
+               <a href="https://ezmax.dev" target="_blank" rel="noreferrer">ezmax.dev</a>
+               .
+            </p>
          </section>
       </header>
 
@@ -43,8 +47,8 @@
                <ul v-if="server.variables.length">
                   <li v-for="variable in server.variables" :key="variable.name">
                      <strong>{{ variable.name }}</strong>
-                     <span v-if="variable.defaultValue"> · {{ variable.defaultValue }}</span>
-                     <span v-if="variable.enumValues?.length"> · {{ variable.enumValues.join(', ') }}</span>
+                     <span v-if="variable.defaultValue">· {{ variable.defaultValue }}</span>
+                     <span v-if="variable.enumValues?.length">· {{ variable.enumValues.join(', ') }}</span>
                      <small v-if="variable.description">{{ variable.description }}</small>
                   </li>
                </ul>
@@ -79,7 +83,10 @@
       <section v-for="group in tagGroups" :key="group.name" class="home-section">
          <div class="home-section-head">
             <i class="pi pi-folder" aria-hidden="true"></i>
-            <span class="home-title"><h3>{{ group.name }}</h3><span class="home-count">{{ group.tags.length }}</span></span>
+            <span class="home-title">
+               <h3>{{ group.name }}</h3>
+               <span class="home-count">{{ group.tags.length }}</span>
+            </span>
          </div>
          <div class="tag-cloud">
             <RouterLink v-for="tag in group.tags" :key="tag" :to="{ name: 'page-details', params: { object: tag } }">{{ formatTag(tag) }}</RouterLink>

@@ -59,7 +59,7 @@
          </div>
 
          <div class="top-actions">
-            <Button class="portal-link" label="Portail développeur" icon="pi pi-external-link" size="small" as="a" href="https://ezmax.dev" target="_blank" rel="noreferrer" />
+            <Button class="portal-link" label="Developer Portal" icon="pi pi-external-link" size="small" as="a" href="https://ezmax.dev" target="_blank" rel="noreferrer" />
             <Button icon="pi pi-github" text rounded aria-label="Open specifications on GitHub" v-tooltip.bottom="'Specs eZmax'" as="a" :href="specsPage" target="_blank" rel="noreferrer" />
             <Button :icon="store.darkMode ? 'pi pi-sun' : 'pi pi-moon'" text rounded :aria-label="store.darkMode ? 'Light mode' : 'Dark mode'" v-tooltip.bottom="store.darkMode ? 'Light mode' : 'Dark mode'" @click="store.darkMode = !store.darkMode" />
             <Button icon="pi pi-cog" text rounded aria-label="Settings" v-tooltip.bottom="'Settings'" @click="openSettings" />
@@ -361,7 +361,7 @@ const textSizes = [
 ]
 
 const nav = computed(() => (documentModel.value ? buildNav(documentModel.value) : undefined))
-const title = computed(() => documentModel.value?.info?.title || 'OpenAPI Reader')
+const title = computed(() => documentModel.value?.info?.title || 'eZmax API Reference')
 const version = computed(() => documentModel.value?.info?.version || '')
 const logoUrl = computed(() => (store.darkMode ? '/logo-dark.svg' : '/logo-light.svg'))
 const logoAlt = 'eZmax'
