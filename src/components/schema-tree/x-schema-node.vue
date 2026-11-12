@@ -6,6 +6,7 @@
          </button>
          <span v-else class="chevron-spacer"></span>
          <span class="schema-label" :class="{ deprecated: node.deprecated, 'status-success': node.labelTone === 'success', 'status-error': node.labelTone === 'error' }">{{ node.label }}</span>
+         <span v-if="node.labelTone && node.description" class="schema-desc-inline" :title="node.description">{{ node.description }}</span>
          <span v-if="node.required" class="required-mark" title="Required">*</span>
          <XBadgeObjectType :type="node.typeLabel" :schema-name="node.schemaName" :schema-names="node.schemaNames" />
          <span v-if="node.format" class="chip chip-format">{{ node.format }}</span>
@@ -33,10 +34,7 @@
             </p>
          </div>
          <XMarkdown v-if="store.showDescription && node.description" class="schema-description" :source="node.description" />
-         <div v-if="node.enumValues.length" class="enum-row">
-            <span class="enum-prefix">enum:</span>
-            <span v-for="value in node.enumValues" :key="String(value)" class="enum-chip">{{ formatEnum(value) }}</span>
-         </div>
+         <XBadgeEnum v-if="node.enumValues.length" :values="node.enumValues" />
          <span v-if="node.defaultValue !== undefined" class="chip">default {{ formatEnum(node.defaultValue) }}</span>
          <p v-if="node.note" class="schema-meta">{{ node.note }}</p>
          <XSchemaNode v-for="child in node.children" :key="child.key" :node="child" :depth="depth + 1" :expanded="expanded" :expand-token="expandToken" />
@@ -48,6 +46,7 @@
 import { computed, ref, watch } from 'vue'
 import { useGlobalStore } from 'src/stores/global'
 import type { SchemaNode } from 'src/utils/schema-tree'
+import XBadgeEnum from 'src/components/badge-enum'
 import XBadgeLength from 'src/components/badge-length'
 import XBadgeMinimumMaximum from 'src/components/badge-minimum-maximum'
 import XBadgeObjectType from 'src/components/badge-object-type'

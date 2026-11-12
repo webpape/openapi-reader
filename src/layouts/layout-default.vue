@@ -9,11 +9,11 @@
          </div>
 
          <div class="spec-upload">
-            <input ref="specFile" type="file" accept="application/json,.json" class="spec-file" aria-label="Importer un JSON" @change="onUpload" />
+            <input ref="specFile" type="file" accept="application/json,.json" class="spec-file" aria-label="Upload JSON file" @change="onUpload" />
             <div v-if="!uploadedName" class="spec-actions">
                <button type="button" class="spec-upload-btn" :disabled="loading && !documentModel" @click="specFile?.click()">
                   <i class="pi pi-upload"></i>
-                  <span>Upload JSON Spec</span>
+                  <span>Upload JSON</span>
                </button>
                <button
                   type="button"
@@ -49,10 +49,10 @@
                   </div>
                </Popover>
             </div>
-            <span v-else class="spec-chip" :title="'JSON actif : ' + uploadedName">
-               <span class="spec-chip-state">JSON actif</span>
+            <span v-else class="spec-chip" :title="'Active JSON: ' + uploadedName">
+               <span class="spec-chip-state">Active JSON</span>
                <span class="spec-chip-name">{{ uploadedName }}</span>
-               <button type="button" class="spec-chip-clear" aria-label="Retirer le JSON importé" @click="clearUpload">
+               <button type="button" class="spec-chip-clear" aria-label="Remove uploaded JSON" @click="clearUpload">
                   <i class="pi pi-times"></i>
                </button>
             </span>
@@ -60,7 +60,6 @@
 
          <div class="top-actions">
             <Button class="portal-link" label="Developer Portal" icon="pi pi-external-link" size="small" as="a" href="https://ezmax.dev" target="_blank" rel="noreferrer" />
-            <Button icon="pi pi-github" text rounded aria-label="Open specifications on GitHub" v-tooltip.bottom="'Specs eZmax'" as="a" :href="specsPage" target="_blank" rel="noreferrer" />
             <Button :icon="store.darkMode ? 'pi pi-sun' : 'pi pi-moon'" text rounded :aria-label="store.darkMode ? 'Light mode' : 'Dark mode'" v-tooltip.bottom="store.darkMode ? 'Light mode' : 'Dark mode'" @click="store.darkMode = !store.darkMode" />
             <Button icon="pi pi-cog" text rounded aria-label="Settings" v-tooltip.bottom="'Settings'" @click="openSettings" />
             <Popover ref="settingsPopover">
@@ -70,10 +69,10 @@
                      <button v-for="size in textSizes" :key="size.value" type="button" :class="{ active: store.textSize === size.value }" :aria-pressed="store.textSize === size.value" :title="size.name" @click="store.textSize = size.value">{{ size.label }}</button>
                   </div>
                   <p class="settings-title">Display</p>
-                  <label><ToggleSwitch v-model="store.showDescription" size="small" /> Descriptions</label>
-                  <label><ToggleSwitch v-model="store.showObjectNames" size="small" /> Object names</label>
+                  <label><ToggleSwitch v-model="store.showDescription" size="small" /> Show Descriptions</label>
+                  <label><ToggleSwitch v-model="store.showObjectNames" size="small" /> Show object names</label>
                   <label><ToggleSwitch v-model="store.showFieldObject" size="small" /> Show field object</label>
-                  <label><ToggleSwitch v-model="store.showXParameters" size="small" /> Show x parameters</label>
+                  <label><ToggleSwitch v-model="store.showXParameters" size="small" /> Show X Parameters</label>
                   <label><ToggleSwitch v-model="store.showProperties" size="small" /> Expand advanced properties</label>
                </div>
             </Popover>
@@ -97,8 +96,8 @@
                      type="button"
                      class="search-toggle-expand"
                      :class="{ active: store.expandRoutesOnSearch }"
-                     :title="store.expandRoutesOnSearch ? 'Routes ouvertes lors de la recherche (cliquer pour fermer)' : 'Routes fermées lors de la recherche (cliquer pour ouvrir)'"
-                     :aria-label="store.expandRoutesOnSearch ? 'Routes ouvertes' : 'Routes fermées'"
+                     :title="store.expandRoutesOnSearch ? 'Routes expanded on search (click to collapse)' : 'Routes collapsed on search (click to expand)'"
+                     :aria-label="store.expandRoutesOnSearch ? 'Routes expanded' : 'Routes collapsed'"
                      @click="store.expandRoutesOnSearch = !store.expandRoutesOnSearch"
                   >
                      <i :class="store.expandRoutesOnSearch ? 'pi pi-folder-open' : 'pi pi-folder'"></i>
@@ -110,7 +109,7 @@
                <div v-show="store.searchOptionsOpen" class="search-options">
                   <label><ToggleSwitch v-model="store.searchInName" /> Route name</label>
                   <label><ToggleSwitch v-model="store.searchInDescription" /> Descriptions</label>
-                  <label><ToggleSwitch v-model="store.showDeprecated" /> deprecated</label>
+                  <label><ToggleSwitch v-model="store.showDeprecated" /> Deprecated</label>
                   <div v-if="groupedXProperties.length" class="prop-filter-wrap">
                      <button type="button" class="prop-filter-trigger" @click="togglePropPicker">
                         <div class="prop-filter-chips">
@@ -162,13 +161,23 @@
                <section v-for="group in visibleGroups" :key="group.name" class="nav-group">
                   <h2><span class="nav-title">{{ group.name }}<span class="nav-count">{{ group.tags.length }}</span></span></h2>
                   <div v-for="tag in group.tags" :id="'tag-' + tag" :key="tag" class="tag-block">
-                     <button type="button" class="tag-head" :class="{ active: isActiveTag(tag) }" @click="onTag(tag)">
-                        <span v-if="operationsFor(tag).length" class="caret" :class="{ open: isOpen(tag) }"></span>
+                     <div class="tag-head-row" :class="{ active: isActiveTag(tag) }" @click="onTag(tag)">
+                        <button
+                           v-if="operationsFor(tag).length"
+                           type="button"
+                           class="tag-caret-btn"
+                           :aria-label="isOpen(tag) ? 'Collapse' : 'Expand'"
+                           @click.stop="toggleTag(tag)"
+                        >
+                           <span class="caret" :class="{ open: isOpen(tag) }"></span>
+                        </button>
                         <span v-else class="caret-spacer"></span>
-                        <span class="tag-label">{{ formatTag(tag) }}</span>
-                     </button>
+                        <span class="tag-label-btn">
+                           <span class="tag-label" :title="formatTag(tag)">{{ formatTag(tag) }}</span>
+                        </span>
+                     </div>
                      <div v-show="isOpen(tag)" class="op-list">
-                        <RouterLink v-for="operation in operationsFor(tag)" :key="operation.method + operation.operationId + operation.route" class="op" :class="{ 'router-link-active': isActiveOperation(tag, operation) }" :title="operation.route" :to="operation.operationId ? { name: 'page-details', params: { object: tag, operation: operation.operationId } } : { name: 'page-details', params: { object: tag } }" @click="navOpen = false">
+                        <RouterLink v-for="operation in operationsFor(tag)" :key="operation.method + operation.operationId + operation.route" class="op" :class="{ 'router-link-active': isActiveOperation(tag, operation) }" :title="operation.summary || operation.route" :to="operation.operationId ? { name: 'page-details', params: { object: tag, operation: operation.operationId } } : { name: 'page-details', params: { object: tag } }" @click="navOpen = false">
                            <span class="method" :class="'m-' + operation.method">{{ operation.method }}</span>
                            <span class="op-label" :class="{ strike: operation.deprecated }">{{ operation.summary }}</span>
                         </RouterLink>
@@ -177,29 +186,42 @@
                </section>
 
                <section v-if="visibleWebhooks.length" class="nav-group">
-                  <button type="button" class="nav-section" @click="store.webhooksOpen = !store.webhooksOpen">
+                  <button type="button" class="nav-section" @click="toggleWebhooksSection">
                      <span class="caret" :class="{ open: webhooksExpanded }"></span>
                      <span class="nav-title">Webhooks<span class="nav-count">{{ visibleWebhooks.length }}</span></span>
                   </button>
                   <div v-show="webhooksExpanded" class="op-list">
-                     <RouterLink v-for="webhook in visibleWebhooks" :key="webhook.name" class="op" :title="webhook.name" :to="{ name: 'webhook', params: { name: webhook.name } }" @click="navOpen = false">
+                     <RouterLink v-for="webhook in visibleWebhooks" :key="webhook.name" class="op" :title="webhook.summary || webhook.name" :to="{ name: 'webhook', params: { name: webhook.name } }" @click="navOpen = false">
                         <span class="method" :class="'m-' + webhook.method">{{ webhook.method }}</span>
                         <span class="op-label" :class="{ strike: webhook.deprecated }">{{ webhook.summary }}</span>
                      </RouterLink>
                   </div>
                </section>
 
-               <section v-if="schemaCount" class="nav-group">
-                  <button type="button" class="nav-section" @click="store.schemasOpen = !store.schemasOpen">
-                     <span class="caret" :class="{ open: store.schemasOpen }"></span>
-                     <span class="nav-title">Schemas<span class="nav-count">{{ schemaMatchCount }}</span></span>
+               <section v-if="visibleWebsockets.length" class="nav-group">
+                  <button type="button" class="nav-section" @click="toggleWebsocketsSection">
+                     <span class="caret" :class="{ open: websocketsExpanded }"></span>
+                     <span class="nav-title">WebSockets<span class="nav-count">{{ visibleWebsockets.length }}</span></span>
                   </button>
-                  <div v-show="store.schemasOpen" class="schema-list">
-                     <button v-for="name in schemaMatches" :key="name" type="button" class="schema-hit" @click="openSchema(name)">{{ name }}</button>
-                     <p v-if="schemaMatchCount > schemaMatches.length" class="sidebar-note">{{ schemaMatchCount - schemaMatches.length }} more. Refine the search.</p>
+                  <div v-show="websocketsExpanded" class="op-list">
+                     <RouterLink v-for="ws in visibleWebsockets" :key="ws.name" class="op" :title="ws.summary || ws.name" :to="{ name: 'webhook', params: { name: ws.name } }" @click="navOpen = false">
+                        <span class="method m-ws">WS</span>
+                        <span class="op-label" :class="{ strike: ws.deprecated }">{{ ws.summary }}</span>
+                     </RouterLink>
                   </div>
                </section>
-               <p v-if="needle.length >= 2 && !visibleGroups.length && !visibleWebhooks.length" class="sidebar-note">No results</p>
+
+               <section v-if="visibleSchemas.length" class="nav-group">
+                  <button type="button" class="nav-section" @click="toggleSchemasSection">
+                     <span class="caret" :class="{ open: schemasExpanded }"></span>
+                     <span class="nav-title">Schemas<span class="nav-count">{{ visibleSchemas.length }}</span></span>
+                  </button>
+                  <div v-show="schemasExpanded" class="schema-list">
+                     <button v-for="name in pagedSchemas" :key="name" type="button" class="schema-hit" :title="name" @click="openSchema(name)">{{ name }}</button>
+                     <p v-if="visibleSchemas.length > pagedSchemas.length" class="sidebar-note">{{ visibleSchemas.length - pagedSchemas.length }} more. Refine the search.</p>
+                  </div>
+               </section>
+               <p v-if="needle.length >= 2 && !visibleGroups.length && !visibleWebhooks.length && !visibleWebsockets.length && !visibleSchemas.length" class="sidebar-note">No results</p>
             </div>
             <div class="resizer" @mousedown="startResize"></div>
          </aside>
@@ -257,7 +279,6 @@ import {
    SPEC_BRANCH_STORAGE_KEY,
    SPEC_FILES_TO_TRY,
    rawSpecBranchUrl,
-   specsBranchUrl,
    type SpecBranch
 } from 'src/utils/specs'
 
@@ -314,7 +335,6 @@ function readInitialBranch(): SpecBranch {
 
 const currentBranchLabel = computed(() => (currentBranch.value === 'develop' ? 'Develop' : 'Master'))
 const otherBranchLabel = computed(() => (currentBranch.value === 'develop' ? 'Master' : 'Develop'))
-const specsPage = computed(() => specsBranchUrl(currentBranch.value))
 
 const branchPopover = ref<any>()
 
@@ -390,11 +410,57 @@ const matchingSchemas = computed(() => {
    return nav.value.schemas.filter((name) => queryScore(name, needle.value) > 0)
 })
 
-const schemaMatchCount = computed(() => matchingSchemas.value.length)
+const visibleSchemas = computed(() => matchingSchemas.value)
+const schemaMatchCount = computed(() => visibleSchemas.value.length)
+const pagedSchemas = computed(() => visibleSchemas.value.slice(0, needle.value ? 80 : 200))
+const searchWebhooksOverride = ref<boolean | null>(null)
+const searchWebsocketsOverride = ref<boolean | null>(null)
+const searchSchemasOverride = ref<boolean | null>(null)
 
-const schemaMatches = computed(() => matchingSchemas.value.slice(0, needle.value ? 80 : 200))
+const webhooksExpanded = computed(() => {
+   if (needle.value) {
+      return searchWebhooksOverride.value !== null ? searchWebhooksOverride.value : true
+   }
+   return store.webhooksOpen
+})
 
-const webhooksExpanded = computed(() => store.webhooksOpen || Boolean(needle.value))
+const websocketsExpanded = computed(() => {
+   if (needle.value) {
+      return searchWebsocketsOverride.value !== null ? searchWebsocketsOverride.value : true
+   }
+   return store.websocketsOpen
+})
+
+const schemasExpanded = computed(() => {
+   if (needle.value) {
+      return searchSchemasOverride.value !== null ? searchSchemasOverride.value : true
+   }
+   return store.schemasOpen
+})
+
+function toggleWebhooksSection() {
+   if (needle.value) {
+      searchWebhooksOverride.value = !webhooksExpanded.value
+   } else {
+      store.webhooksOpen = !store.webhooksOpen
+   }
+}
+
+function toggleWebsocketsSection() {
+   if (needle.value) {
+      searchWebsocketsOverride.value = !websocketsExpanded.value
+   } else {
+      store.websocketsOpen = !store.websocketsOpen
+   }
+}
+
+function toggleSchemasSection() {
+   if (needle.value) {
+      searchSchemasOverride.value = !schemasExpanded.value
+   } else {
+      store.schemasOpen = !store.schemasOpen
+   }
+}
 
 const groupedXProperties = computed(() => {
    if (!nav.value) return []
@@ -436,9 +502,17 @@ const groupedXProperties = computed(() => {
       if (!valMap || valMap.size === 0 || (valMap.size === 1 && valMap.has('true'))) {
          groups.push({
             label: propTitle,
-            items: [{ key: prop, label: `Any (${total})` }]
+            items: [{ key: `${prop}:true`, label: `true (${total})` }]
+         })
+      } else if (valMap.size === 1) {
+         // Single value (e.g. x-ezsignindividual: 'Pro')
+         const [val, count] = Array.from(valMap.entries())[0]
+         groups.push({
+            label: propTitle,
+            items: [{ key: `${prop}:${val}`, label: `${val} (${count})` }]
          })
       } else {
+         // Multiple distinct values (e.g. x-ezsignofficeplan: 'Enterprise', 'Pro')
          const items = [{ key: prop, label: `Any (${total})` }]
          const subItems = Array.from(valMap.entries())
             .map(([val, count]) => ({
@@ -477,7 +551,16 @@ function toggleFilter(key: string) {
    if (store.searchPropertyFilters.includes(key)) {
       store.searchPropertyFilters = store.searchPropertyFilters.filter((k) => k !== key)
    } else {
-      store.searchPropertyFilters = [...store.searchPropertyFilters, key]
+      if (!key.includes(':')) {
+         // Selected 'Any' for a property (e.g. 'x-ezsignofficeplan')
+         // Remove any specific sub-values of this same property so 'Any' takes precedence cleanly
+         store.searchPropertyFilters = store.searchPropertyFilters.filter((k) => !k.startsWith(`${key}:`)).concat(key)
+      } else {
+         // Selected a specific value (e.g. 'x-ezsignofficeplan:Pro')
+         // Remove 'Any' of this property if it was selected
+         const prop = key.slice(0, key.indexOf(':'))
+         store.searchPropertyFilters = store.searchPropertyFilters.filter((k) => k !== prop).concat(key)
+      }
    }
 }
 
@@ -493,7 +576,7 @@ function labelForFilter(key: string): string {
             const val = key.slice(key.indexOf(':') + 1)
             return `${group.label}: ${val}`
          }
-         return `${group.label}`
+         return `${group.label}: Any`
       }
    }
    return key.replace(/^x-/, '').toUpperCase()
@@ -514,6 +597,20 @@ const filteredPropGroups = computed(() => {
 const visibleWebhooks = computed(() => {
    if (!nav.value) return []
    return nav.value.webhooks.filter((webhook) => {
+      if (webhook.isWebsocket) return false
+      if (!store.showDeprecated && webhook.deprecated) return false
+      if (!needle.value) return true
+      const parts = []
+      if (store.searchInName) parts.push(webhook.name, webhook.summary, webhook.method)
+      if (store.searchInDescription) parts.push(webhook.searchDescription)
+      return queryScore(parts.join('\n'), needle.value) > 0
+   })
+})
+
+const visibleWebsockets = computed(() => {
+   if (!nav.value) return []
+   return nav.value.webhooks.filter((webhook) => {
+      if (!webhook.isWebsocket) return false
       if (!store.showDeprecated && webhook.deprecated) return false
       if (!needle.value) return true
       const parts = []
@@ -583,24 +680,34 @@ function isActiveOperation(tag: string, operation: NavOperation) {
    return route.params.object === tag && route.params.operation === operation.operationId
 }
 
-function onTag(tag: string) {
+function toggleTag(tag: string) {
    if (needle.value || store.searchPropertyFilters.length) {
-      if (operationsFor(tag).length) {
-         if (isOpen(tag)) {
-            searchOpenTags.value.delete(tag)
-            searchClosedTags.value.add(tag)
-         } else {
-            searchClosedTags.value.delete(tag)
-            searchOpenTags.value.add(tag)
-         }
-         return
+      if (isOpen(tag)) {
+         searchOpenTags.value.delete(tag)
+         searchClosedTags.value.add(tag)
+      } else {
+         searchClosedTags.value.delete(tag)
+         searchOpenTags.value.add(tag)
       }
-   }
-   if (operationsFor(tag).length && !needle.value && openTag.value === tag) {
-      openTag.value = ''
       return
    }
-   openTag.value = tag
+   if (openTag.value === tag) {
+      openTag.value = ''
+   } else {
+      openTag.value = tag
+   }
+}
+
+function onTag(tag: string) {
+   // Always open tag items if closed when clicking the tag page link
+   if (operationsFor(tag).length) {
+      if (needle.value || store.searchPropertyFilters.length) {
+         searchClosedTags.value.delete(tag)
+         searchOpenTags.value.add(tag)
+      } else {
+         openTag.value = tag
+      }
+   }
    router.push({ name: 'page-details', params: { object: tag } })
    navOpen.value = false
 }
@@ -805,6 +912,9 @@ watch(
    () => {
       searchOpenTags.value.clear()
       searchClosedTags.value.clear()
+      searchWebhooksOverride.value = null
+      searchWebsocketsOverride.value = null
+      searchSchemasOverride.value = null
    }
 )
 

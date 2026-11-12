@@ -747,6 +747,7 @@ html.app-dark .p-tooltip .p-tooltip-arrow {
 .prop-filter-chips .p-chip {
    display: inline-flex;
    align-items: center;
+   max-width: 100%;
    padding: 0 4px 0 6px;
    font-size: 10.5px;
    height: 18px;
@@ -755,10 +756,16 @@ html.app-dark .p-tooltip .p-tooltip-arrow {
    color: var(--or-text);
    border: 1px solid color-mix(in srgb, var(--p-primary-color) 35%, transparent);
    border-radius: 4px;
+   box-sizing: border-box;
 }
 .prop-filter-chips .p-chip .p-chip-label {
    color: inherit;
    line-height: 16px;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+   min-width: 0;
+   max-width: 170px;
 }
 .prop-filter-chips .p-chip .p-chip-remove-icon {
    width: 12px;
@@ -786,11 +793,14 @@ html.app-dark .p-tooltip .p-tooltip-arrow {
    opacity: 0.65;
 }
 
+.search-prop-popover.p-popover {
+   max-width: min(340px, calc(100vw - 24px));
+}
 .search-prop-popover .p-popover-content {
    padding: 0;
 }
 .prop-picker {
-   width: min(380px, calc(100vw - 32px));
+   width: min(320px, calc(100vw - 32px));
    max-height: 420px;
    display: flex;
    flex-direction: column;
@@ -984,11 +994,62 @@ html.app-dark .p-tooltip .p-tooltip-arrow {
    cursor: pointer;
 }
 
-.tag-head {
+.tag-head,
+.tag-head-row {
    padding: 1px 6px;
    min-height: var(--or-row);
    font-size: var(--or-font);
    line-height: 1.2;
+}
+
+.tag-head-row {
+   display: flex;
+   align-items: center;
+   width: 100%;
+   border-radius: 4px;
+   cursor: pointer;
+}
+
+.tag-head-row:hover {
+   background: color-mix(in srgb, var(--p-text-color) 6%, transparent);
+}
+
+.tag-head-row.active {
+   background: color-mix(in srgb, var(--p-primary-color) 12%, transparent);
+}
+
+.tag-caret-btn {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   width: 18px;
+   height: 20px;
+   padding: 0;
+   margin: 0;
+   border: 0;
+   background: transparent;
+   color: inherit;
+   cursor: pointer;
+   border-radius: 3px;
+}
+
+.tag-caret-btn:hover {
+   background: color-mix(in srgb, var(--p-text-color) 10%, transparent);
+}
+
+.tag-label-btn {
+   display: flex;
+   align-items: center;
+   flex: 1;
+   min-width: 0;
+   padding: 0 4px;
+   margin: 0;
+   border: 0;
+   background: transparent;
+   color: inherit;
+   font: inherit;
+   cursor: pointer;
+   text-align: left;
 }
 
 .caret {
@@ -1104,6 +1165,10 @@ html.app-dark .p-tooltip .p-tooltip-arrow {
 .m-delete {
    color: var(--or-delete-fg);
    background: var(--or-delete-bg);
+}
+.m-ws {
+   color: #8b5cf6;
+   background: rgba(139, 92, 246, 0.12);
 }
 
 .strike {
@@ -1712,10 +1777,69 @@ button.schema-anchor,
    font-size: 13.5px;
    line-height: 1.45;
 }
+.route-context-box {
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
+   padding: 8px 12px;
+   margin-bottom: 12px;
+   border: 1px solid var(--or-line);
+   border-radius: 6px;
+   background: color-mix(in srgb, var(--p-content-background) 70%, transparent);
+   font-size: var(--or-font-sm);
+   line-height: 1.4;
+}
+.route-context-item {
+   display: flex;
+   align-items: baseline;
+   gap: 6px;
+   flex-wrap: wrap;
+}
+.route-context-item .context-label {
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+   font-weight: 600;
+   color: var(--p-text-muted-color);
+   flex: none;
+}
+.route-context-item .context-label .pi {
+   font-size: 11px;
+}
+.route-context-item .context-content {
+   color: var(--p-text-color);
+}
+.route-context-item code {
+   padding: 1px 4px;
+   border-radius: 3px;
+   background: color-mix(in srgb, var(--p-text-color) 7%, transparent);
+   font-size: calc(var(--or-font-sm) - 0.5px);
+}
+.p-button.info-btn.p-button-sm.p-button-icon-only,
 .p-button.copy-btn.p-button-sm.p-button-icon-only {
-   width: 36px;
-   height: 36px;
-   min-height: 36px;
+   width: 32px;
+   height: 32px;
+   min-height: 32px;
+   border-radius: 50%;
+   color: var(--p-text-muted-color);
+}
+.p-button.info-btn.p-button-sm.p-button-icon-only:hover,
+.p-button.copy-btn.p-button-sm.p-button-icon-only:hover {
+   color: var(--p-text-color);
+   background: color-mix(in srgb, var(--p-text-color) 8%, transparent);
+}
+.p-button.info-btn .p-button-icon {
+   font-size: 15px;
+}
+.route-info-popover .p-popover-content {
+   padding: 0;
+}
+.route-info-popover .route-context-box {
+   margin-bottom: 0;
+   border: 0;
+   background: transparent;
+   max-width: min(520px, calc(100vw - 32px));
+   padding: 10px 14px;
 }
 .p-button.copy-btn .p-button-icon {
    font-size: 15px;
@@ -1882,6 +2006,27 @@ button.schema-anchor,
    display: flex;
    flex-wrap: wrap;
    gap: 6px;
+}
+.env-region-group {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+   margin-bottom: 4px;
+}
+.env-region-row {
+   display: flex;
+   align-items: flex-start;
+   gap: 12px;
+   flex-wrap: wrap;
+}
+.env-region-col {
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   min-width: 0;
+}
+.env-region-col .field-label {
+   margin: 0;
 }
 .env-pill {
    border: 1px solid var(--or-line);
@@ -2171,6 +2316,12 @@ html.app-dark .try-key-status.active {
    display: flex;
    align-items: center;
    gap: 6px;
+   width: 100%;
+}
+.try-auth-fields {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
    width: 100%;
 }
 .try-api-key-field {
@@ -2906,6 +3057,16 @@ html.app-dark .try-status-pill.err {
 .app-dark .schema-label.status-error {
    color: #fb7185;
 }
+.schema-desc-inline {
+   font-size: var(--or-font-sm);
+   color: var(--p-text-muted-color);
+   font-style: italic;
+   margin-left: 2px;
+   max-width: 280px;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+}
 .required-mark {
    color: #e11d48;
    font-weight: 700;
@@ -3005,6 +3166,23 @@ html.app-dark .try-status-pill.err {
    font-family: 'JetBrains Mono', ui-monospace, monospace;
    font-size: calc(var(--or-chip) - 0.5px);
    line-height: 16px;
+}
+.enum-more-btn {
+   display: inline-flex;
+   align-items: center;
+   border: 0;
+   border-radius: 3px;
+   background: color-mix(in srgb, var(--p-primary-color) 14%, transparent);
+   color: var(--p-primary-color);
+   font-size: calc(var(--or-chip) - 0.5px);
+   font-weight: 600;
+   line-height: 16px;
+   padding: 0 6px;
+   cursor: pointer;
+   transition: background 0.15s ease, color 0.15s ease;
+}
+.enum-more-btn:hover {
+   background: color-mix(in srgb, var(--p-primary-color) 25%, transparent);
 }
 .type-pills {
    display: inline-flex;

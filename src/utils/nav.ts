@@ -18,6 +18,8 @@ export interface NavWebhook {
    summary: string
    deprecated: boolean
    searchDescription: string
+   isWebsocket: boolean
+   tag?: string
 }
 
 const METHOD_ORDER = ['post', 'get', 'put', 'patch', 'delete', 'query', 'head', 'options', 'trace']
@@ -77,12 +79,16 @@ export function buildNav(doc: any) {
    const webhooks: NavWebhook[] = Object.entries(webhooksOf(doc)).map(([name, item]) => {
       const method = HTTP_METHODS.find((candidate) => item?.[candidate]) || 'post'
       const operation = item?.[method] || {}
+      const isWebsocket = name.toLowerCase().startsWith('websocket-') || (operation.tags || []).some((t: string) => t.toLowerCase().startsWith('websocket'))
+      const tag = operation.tags?.[0]
       return {
          name,
          method,
          summary: operation.summary || name,
          deprecated: Boolean(operation.deprecated),
-         searchDescription: String(operation.description || '').toLowerCase()
+         searchDescription: String(operation.description || '').toLowerCase(),
+         isWebsocket,
+         tag
       }
    })
 

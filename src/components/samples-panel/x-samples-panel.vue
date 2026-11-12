@@ -23,21 +23,31 @@
          </div>
       </div>
 
-      <p v-if="webhook" class="samples-note">Webhook entrant. L'exemple décrit la charge que eZmax envoie.</p>
+      <p v-if="webhook" class="samples-note">Incoming webhook. The example describes the payload eZmax sends.</p>
 
-      <template v-if="!webhook && environments.length">
-         <label class="field-label">Environment</label>
-         <div class="env-pills" role="radiogroup" aria-label="Environment">
-            <button v-for="env in environments" :key="env" type="button" class="env-pill" role="radio" :class="{ active: store.sampleEnvironment === env }" :aria-checked="store.sampleEnvironment === env" @click="store.sampleEnvironment = env">{{ env }}</button>
+      <div v-if="!webhook && (environments.length || regions.length)" class="env-region-group">
+         <div class="env-region-row">
+            <div v-if="environments.length" class="env-region-col">
+               <label class="field-label">Environment</label>
+               <div class="env-pills" role="radiogroup" aria-label="Environment">
+                  <button v-for="env in environments" :key="env" type="button" class="env-pill" role="radio" :class="{ active: store.sampleEnvironment === env }" :aria-checked="store.sampleEnvironment === env" @click="store.sampleEnvironment = env">{{ env }}</button>
+               </div>
+            </div>
+            <div v-if="regions.length" class="env-region-col">
+               <label class="field-label">Region</label>
+               <div class="env-pills" role="radiogroup" aria-label="Region">
+                  <button v-for="reg in regions" :key="reg" type="button" class="env-pill" role="radio" :class="{ active: store.sampleRegion === reg }" :aria-checked="store.sampleRegion === reg" @click="store.sampleRegion = reg">{{ reg }}</button>
+               </div>
+            </div>
          </div>
-      </template>
+      </div>
 
       <template v-if="!webhook && servers.length">
          <label class="field-label">Server</label>
          <Select v-if="servers.length > 1" v-model="serverIndex" :options="serverChoices" option-label="label" option-value="value" class="samples-select" />
          <div class="server-url">
             <code>{{ fullUrl }}</code>
-            <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy URL" @click="copy(fullUrl, 'URL copiée')" />
+            <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy URL" @click="copy(fullUrl, 'URL copied')" />
          </div>
          <p v-if="activeServer?.description" class="samples-note">{{ activeServer.description }}</p>
       </template>
@@ -57,7 +67,7 @@
          <div class="sample-toolbar">
             <span class="sample-label">cURL</span>
             <div class="sample-actions">
-               <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy cURL" @click="copy(curl, 'cURL copié')" />
+               <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy cURL" @click="copy(curl, 'cURL copied')" />
             </div>
          </div>
          <pre><code class="hljs language-bash" v-html="highlighted(curl, 'bash')"></code></pre>
@@ -68,7 +78,7 @@
             <span class="sample-label">Request</span>
             <div class="sample-actions">
                <button type="button" class="explorer-toggle" :class="{ active: store.jsonExplorer }" :aria-pressed="store.jsonExplorer" @click="store.jsonExplorer = !store.jsonExplorer">JSON Explorer</button>
-               <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy request" @click="copy(prettyJson(requestExample), 'Exemple de requête copié')" />
+               <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy request" @click="copy(prettyJson(requestExample), 'Request example copied')" />
             </div>
          </div>
          <div v-if="store.jsonExplorer" class="json-explorer">
@@ -86,7 +96,7 @@
                <span class="sample-label">{{ activeResponse.status }}</span>
                <div class="sample-actions">
                   <button type="button" class="explorer-toggle" :class="{ active: store.jsonExplorer }" :aria-pressed="store.jsonExplorer" @click="store.jsonExplorer = !store.jsonExplorer">JSON Explorer</button>
-                  <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy response" @click="copy(prettyJson(activeResponse.example), 'Exemple de réponse copié')" />
+                  <Button class="copy-btn" icon="pi pi-copy" size="small" text rounded aria-label="Copy response" @click="copy(prettyJson(activeResponse.example), 'Response example copied')" />
                </div>
             </div>
             <div v-if="store.jsonExplorer" class="json-explorer">
@@ -136,13 +146,30 @@
                      </div>
                   </template>
 
+                  <template v-if="!webhook && regions.length">
+                     <div class="env-pills try-env-pills" role="radiogroup" aria-label="Region">
+                        <button
+                           v-for="reg in regions"
+                           :key="reg"
+                           type="button"
+                           class="env-pill"
+                           role="radio"
+                           :class="{ active: tryDialogRegion === reg }"
+                           :aria-checked="tryDialogRegion === reg"
+                           @click="tryDialogRegion = reg"
+                        >
+                           {{ reg }}
+                        </button>
+                     </div>
+                  </template>
+
                   <button
                      type="button"
                      class="try-split-layout-toggle"
                      :class="{ active: trySplitLayout }"
                      :aria-pressed="trySplitLayout"
-                     :aria-label="trySplitLayout ? 'Passer à la disposition empilée' : 'Passer à la disposition côte à côte'"
-                     v-tooltip.bottom="trySplitLayout ? 'Vue côte à côte active (cliquer pour empiler)' : 'Activer la vue côte à côte (2 panneaux)'"
+                     :aria-label="trySplitLayout ? 'Switch to stacked layout' : 'Switch to side-by-side layout'"
+                     v-tooltip.bottom="trySplitLayout ? 'Side-by-side view active (click to stack)' : 'Enable side-by-side view (2 panels)'"
                      @click="trySplitLayout = !trySplitLayout"
                   >
                      <svg
@@ -177,8 +204,8 @@
                   size="small"
                   text
                   rounded
-                  aria-label="Copier l'URL complète"
-                  @click="copy(tryDialogFullUrl, 'URL complète copiée')"
+                  aria-label="Copy full URL"
+                  @click="copy(tryDialogFullUrl, 'Full URL copied')"
                />
             </div>
             <Button
@@ -187,14 +214,14 @@
                class="try-send-btn"
                :loading="trySending"
                :disabled="trySendDisabled"
-               :title="!isAllowedTargetUrl(tryDialogFullUrl) ? 'Seuls les serveurs ezmax.com sont autorisés' : undefined"
+               :title="!isAllowedTargetUrl(tryDialogFullUrl) ? 'Only ezmax.com servers are allowed' : undefined"
                @click="sendTryRequest"
             />
          </div>
 
          <div v-if="!isAllowedTargetUrl(tryDialogFullUrl)" class="try-warning-banner">
             <i class="pi pi-exclamation-triangle" aria-hidden="true" />
-            <span>Seules les requêtes destinées aux serveurs de domaine <code>ezmax.com</code> sont autorisées.</span>
+            <span>Only requests targeting <code>ezmax.com</code> domain servers are allowed.</span>
          </div>
 
          <div class="try-dialog-body" :class="{ 'try-dialog-body--split': trySplitLayout }">
@@ -213,58 +240,106 @@
                      </span>
                      <span class="try-key-status" :class="{ active: Boolean(tryApiKey.trim()) }">
                         <span class="try-key-dot" />
-                        {{ tryApiKey.trim() ? 'Token configuré' : 'Aucun token' }}
+                        {{ tryApiKey.trim() ? 'Token configured' : 'No token' }}
                      </span>
                   </div>
                   <div class="try-card-content">
                      <div v-if="security.length > 1" class="try-security-select-row">
                         <Select v-model="securityIndex" :options="securityChoices" option-label="label" option-value="value" size="small" class="samples-select" />
                      </div>
-                     <div class="try-api-key-row">
-                        <IconField class="try-api-key-field">
-                           <InputIcon class="pi pi-shield" />
-                           <InputText
-                              id="try-api-key"
-                              v-model="tryApiKey"
-                              fluid
-                              class="try-api-key"
-                              :class="{ 'try-api-key--masked': !tryApiKeyReveal }"
-                              placeholder="Coller votre clé API (Authorization) ou jeton Bearer…"
-                              autocomplete="off"
-                              autocorrect="off"
-                              autocapitalize="off"
-                              spellcheck="false"
-                              name="or-try-token"
-                              data-form-type="other"
-                              data-lpignore="true"
-                              data-1p-ignore
-                              data-bwignore
+                     <div class="try-auth-fields">
+                        <div class="try-api-key-row">
+                           <IconField class="try-api-key-field">
+                              <InputIcon class="pi pi-shield" />
+                              <InputText
+                                 id="try-api-key"
+                                 v-model="tryApiKey"
+                                 fluid
+                                 class="try-api-key"
+                                 :class="{ 'try-api-key--masked': !tryApiKeyReveal }"
+                                 placeholder="Paste your API key (Authorization) or Bearer token…"
+                                 autocomplete="off"
+                                 autocorrect="off"
+                                 autocapitalize="off"
+                                 spellcheck="false"
+                                 name="or-try-token"
+                                 data-form-type="other"
+                                 data-lpignore="true"
+                                 data-1p-ignore
+                                 data-bwignore
+                              />
+                           </IconField>
+                           <Button
+                              type="button"
+                              :icon="tryApiKeyReveal ? 'pi pi-eye-slash' : 'pi pi-eye'"
+                              severity="secondary"
+                              text
+                              rounded
+                              class="try-api-key-reveal"
+                              :aria-label="tryApiKeyReveal ? 'Hide key' : 'Show key'"
+                              :aria-pressed="tryApiKeyReveal"
+                              v-tooltip.top="tryApiKeyReveal ? 'Hide' : 'Show'"
+                              @click="tryApiKeyReveal = !tryApiKeyReveal"
                            />
-                        </IconField>
-                        <Button
-                           type="button"
-                           :icon="tryApiKeyReveal ? 'pi pi-eye-slash' : 'pi pi-eye'"
-                           severity="secondary"
-                           text
-                           rounded
-                           class="try-api-key-reveal"
-                           :aria-label="tryApiKeyReveal ? 'Masquer la clé' : 'Afficher la clé'"
-                           :aria-pressed="tryApiKeyReveal"
-                           v-tooltip.top="tryApiKeyReveal ? 'Masquer' : 'Afficher'"
-                           @click="tryApiKeyReveal = !tryApiKeyReveal"
-                        />
-                        <Button
-                           v-if="tryApiKey"
-                           type="button"
-                           icon="pi pi-times"
-                           severity="secondary"
-                           text
-                           rounded
-                           class="try-api-key-reveal"
-                           aria-label="Effacer la clé"
-                           v-tooltip.top="'Effacer'"
-                           @click="tryApiKey = ''"
-                        />
+                           <Button
+                              v-if="tryApiKey"
+                              type="button"
+                              icon="pi pi-times"
+                              severity="secondary"
+                              text
+                              rounded
+                              class="try-api-key-reveal"
+                              aria-label="Clear key"
+                              v-tooltip.top="'Clear'"
+                              @click="tryApiKey = ''"
+                           />
+                        </div>
+                        <div class="try-api-key-row">
+                           <IconField class="try-api-key-field">
+                              <InputIcon class="pi pi-lock" />
+                              <InputText
+                                 id="try-api-secret"
+                                 v-model="tryApiSecret"
+                                 fluid
+                                 class="try-api-key"
+                                 :class="{ 'try-api-key--masked': !tryApiSecretReveal }"
+                                 placeholder="API Secret for request signing (optional)…"
+                                 autocomplete="off"
+                                 autocorrect="off"
+                                 autocapitalize="off"
+                                 spellcheck="false"
+                                 name="or-try-secret"
+                                 data-form-type="other"
+                                 data-lpignore="true"
+                                 data-1p-ignore
+                                 data-bwignore
+                              />
+                           </IconField>
+                           <Button
+                              type="button"
+                              :icon="tryApiSecretReveal ? 'pi pi-eye-slash' : 'pi pi-eye'"
+                              severity="secondary"
+                              text
+                              rounded
+                              class="try-api-key-reveal"
+                              :aria-label="tryApiSecretReveal ? 'Hide secret' : 'Show secret'"
+                              :aria-pressed="tryApiSecretReveal"
+                              v-tooltip.top="tryApiSecretReveal ? 'Hide' : 'Show'"
+                              @click="tryApiSecretReveal = !tryApiSecretReveal"
+                           />
+                           <Button
+                              v-if="tryApiSecret"
+                              type="button"
+                              icon="pi pi-times"
+                              severity="secondary"
+                              text
+                              rounded
+                              class="try-api-key-reveal"
+                              aria-label="Clear secret"
+                              v-tooltip.top="'Clear'"
+                              @click="tryApiSecret = ''"
+                           />
+                        </div>
                      </div>
                   </div>
                </section>
@@ -441,7 +516,7 @@
                      </span>
                      <span class="try-json-validity" :class="isTryBodyValidJson ? 'valid' : 'invalid'">
                         <i class="pi" :class="isTryBodyValidJson ? 'pi-check-circle' : 'pi-exclamation-triangle'" aria-hidden="true" />
-                        {{ isTryBodyValidJson ? 'JSON valide' : 'JSON invalide' }}
+                        {{ isTryBodyValidJson ? 'Valid JSON' : 'Invalid JSON' }}
                      </span>
                      <div class="try-body-toolbar">
                         <Button
@@ -497,7 +572,7 @@
                   <div class="try-response-label">Response</div>
                   <div class="try-response-placeholder">
                      <i class="pi pi-spin pi-spinner try-placeholder-icon" />
-                     <p class="try-response-empty-hint">Exécution de la requête en cours…</p>
+                     <p class="try-response-empty-hint">Executing request…</p>
                   </div>
                </div>
 
@@ -518,11 +593,11 @@
                            <span class="try-status-dot" />
                            {{ tryResponse.status }} {{ tryResponse.statusText }}
                         </span>
-                        <span v-if="tryResponse.durationMs !== undefined" class="try-metric-chip" title="Temps de réponse">
+                        <span v-if="tryResponse.durationMs !== undefined" class="try-metric-chip" title="Response time">
                            <i class="pi pi-clock" />
                            {{ tryResponse.durationMs }} ms
                         </span>
-                        <span v-if="tryResponseSizeLabel" class="try-metric-chip" title="Taille de la charge">
+                        <span v-if="tryResponseSizeLabel" class="try-metric-chip" title="Payload size">
                            <i class="pi pi-database" />
                            {{ tryResponseSizeLabel }}
                         </span>
@@ -567,7 +642,7 @@
                            text
                            rounded
                            aria-label="Copy response"
-                           @click="copy(tryResponseBodyFormatted, 'Réponse copiée')"
+                           @click="copy(tryResponseBodyFormatted, 'Response copied')"
                         />
                      </div>
                   </div>
@@ -590,8 +665,8 @@
                   <div class="try-response-label">Response Inspector</div>
                   <div class="try-response-placeholder">
                      <i class="pi pi-send try-placeholder-icon" />
-                     <p class="try-response-empty-title">Prêt à envoyer</p>
-                     <p class="try-response-empty-hint">Configurez votre clé API et vos paramètres à gauche, puis cliquez sur <strong>Send Request</strong> pour inspecter la réponse en direct.</p>
+                     <p class="try-response-empty-title">Ready to send</p>
+                     <p class="try-response-empty-hint">Configure your API credentials and parameters on the left, then click <strong>Send Request</strong> to inspect the live response.</p>
                   </div>
                </div>
             </div>
@@ -620,6 +695,7 @@ import {
    buildCurl,
    buildPathWithParamValues,
    coalesceEnvironmentChoice,
+   coalesceRegionChoice,
    defaultPathParamValues,
    joinUrl,
    pathTemplateParamNames,
@@ -634,6 +710,7 @@ hljs.registerLanguage('json', json)
 hljs.registerLanguage('bash', bash)
 
 const TRY_API_KEY_SESSION_KEY = 'or-try-api-key'
+const TRY_API_SECRET_SESSION_KEY = 'or-try-api-secret'
 function readTryApiKeyFromSession(): string {
    if (typeof sessionStorage === 'undefined') return ''
    try {
@@ -646,6 +723,23 @@ function writeTryApiKeyToSession(value: string) {
    if (typeof sessionStorage === 'undefined') return
    try {
       sessionStorage.setItem(TRY_API_KEY_SESSION_KEY, value)
+   } catch {
+      /* quota / private mode */
+   }
+}
+
+function readTryApiSecretFromSession(): string {
+   if (typeof sessionStorage === 'undefined') return ''
+   try {
+      return sessionStorage.getItem(TRY_API_SECRET_SESSION_KEY) ?? ''
+   } catch {
+      return ''
+   }
+}
+function writeTryApiSecretToSession(value: string) {
+   if (typeof sessionStorage === 'undefined') return
+   try {
+      sessionStorage.setItem(TRY_API_SECRET_SESSION_KEY, value)
    } catch {
       /* quota / private mode */
    }
@@ -678,6 +772,7 @@ interface TryRoutePersisted {
    headerParams?: Record<string, string>
    bodyJson?: string
    environment?: string
+   region?: string
 }
 
 function readAllTryRouteStates(): Record<string, TryRoutePersisted> {
@@ -708,6 +803,8 @@ const props = defineProps<{
    servers: ServerOption[]
    /** Distinct infrastructure environment values from spec server variables (e.g. dev, qa, stg, prod, iso) */
    environmentValues: string[]
+   /** Distinct infrastructure region values from spec server variables (e.g. ca-central-1) */
+   regionValues?: string[]
    security: SecurityOption[]
    parameters: FlatParameter[]
    requestExample?: unknown
@@ -720,10 +817,12 @@ const store = useGlobalStore()
 const { uploadedName } = useOpenApi()
 const isUploadedSpec = computed(() => Boolean(uploadedName?.value))
 const environments = computed(() => props.environmentValues)
+const regions = computed(() => props.regionValues || ['ca-central-1'])
 
 const tryVisible = ref(false)
 const tryBodyJson = ref('{}')
 const tryApiKey = ref(readTryApiKeyFromSession())
+const tryApiSecret = ref(readTryApiSecretFromSession())
 /** Side-by-side request / response layout (sessionStorage, default true for developer console feel) */
 const trySplitLayout = ref(readTrySplitLayoutFromSession())
 const tryDialogWidth = computed(() => (trySplitLayout.value ? 'min(1440px, 98vw)' : 'min(1080px, 96vw)'))
@@ -734,6 +833,7 @@ const tryDialogContentStyle = computed(() =>
 )
 /** When false, API key is masked with CSS (not type=password) to avoid browser save-password prompts */
 const tryApiKeyReveal = ref(false)
+const tryApiSecretReveal = ref(false)
 const trySending = ref(false)
 const tryError = ref('')
 const tryResponse = ref<{
@@ -853,6 +953,8 @@ const tryQueryParamValues = ref<Record<string, string>>({})
 const tryHeaderParamValues = ref<Record<string, string>>({})
 /** Environment for Try modal only (per-route persistence in sessionStorage) */
 const tryDialogEnvironment = ref('')
+/** Region for Try modal only (per-route persistence in sessionStorage) */
+const tryDialogRegion = ref('')
 
 const tryStateKey = computed(() => `${props.method.toUpperCase()}:${props.route}`)
 
@@ -887,6 +989,7 @@ function persistTryRouteStateForKey(
    headerParams: Record<string, string>,
    bodyJson: string,
    environment: string,
+   region: string,
    hasRequestBody: boolean
 ) {
    if (props.webhook) return
@@ -895,7 +998,8 @@ function persistTryRouteStateForKey(
       pathParams: { ...pathParams },
       queryParams: { ...queryParams },
       headerParams: { ...headerParams },
-      environment
+      environment,
+      region
    }
    if (hasRequestBody) entry.bodyJson = bodyJson
    all[stateKey] = entry
@@ -910,6 +1014,7 @@ function persistTryRouteState() {
       tryHeaderParamValues.value,
       tryBodyJson.value,
       tryDialogEnvironment.value,
+      tryDialogRegion.value,
       showTryRequestBody.value
    )
 }
@@ -960,6 +1065,7 @@ function hydrateTryFormFromSession() {
    }
 
    tryDialogEnvironment.value = coalesceEnvironmentChoice(props.environmentValues, saved?.environment ?? store.sampleEnvironment)
+   tryDialogRegion.value = coalesceRegionChoice(regions.value, saved?.region ?? store.sampleRegion)
    lastHydratedTryStateKey = key
 }
 
@@ -1038,8 +1144,8 @@ async function sendTryRequest() {
    if (!isAllowedTargetUrl(tryDialogFullUrl.value)) {
       toast.add({
          severity: 'warn',
-         summary: 'Domaine non autorisé',
-         detail: 'Seules les API hébergées sur ezmax.com (*.ezmax.com) sont autorisées.',
+         summary: 'Unauthorized domain',
+         detail: 'Only APIs hosted on ezmax.com (*.ezmax.com) are allowed.',
          life: 4000
       })
       return
@@ -1050,7 +1156,7 @@ async function sendTryRequest() {
          JSON.parse(tryBodyJson.value || '{}')
          body = tryBodyJson.value
       } catch {
-         toast.add({ severity: 'error', summary: 'JSON invalide', detail: 'Le corps de la requête n’est pas du JSON valide.', life: 3500 })
+         toast.add({ severity: 'error', summary: 'Invalid JSON', detail: 'The request body is not valid JSON.', life: 3500 })
          return
       }
    }
@@ -1059,6 +1165,7 @@ async function sendTryRequest() {
    tryError.value = ''
    tryResponse.value = null
    const key = tryApiKey.value.trim()
+   const secret = tryApiSecret.value.trim()
    const startedAt = performance.now()
 
    try {
@@ -1084,6 +1191,40 @@ async function sendTryRequest() {
 
       const requestUrl = u.toString()
       const methodUpper = props.method.toUpperCase()
+
+      // eZmax Request Signing support when API Secret is provided
+      if (secret && key && window.crypto?.subtle) {
+         try {
+            const now = new Date()
+            const pad = (n: number) => String(n).padStart(2, '0')
+            const isoDate = `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}T${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}Z`
+            
+            const rawBody = methodAcceptsBody.value && body ? body : ''
+            const toFingerprint = `${methodUpper}\n${requestUrl}\n${rawBody}\n${key}\n${isoDate}`
+            
+            const fpBuffer = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(toFingerprint))
+            const fpHash = Array.from(new Uint8Array(fpBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('')
+            const fingerprint = `v1=${fpHash}`
+
+            const toSign = `${fingerprint}${key}${isoDate}`
+            const hmacKey = await window.crypto.subtle.importKey(
+               'raw',
+               new TextEncoder().encode(secret),
+               { name: 'HMAC', hash: 'SHA-256' },
+               false,
+               ['sign']
+            )
+            const sigBuffer = await window.crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(toSign))
+            const sigHash = Array.from(new Uint8Array(sigBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('')
+            const signature = `v1=${sigHash}`
+
+            headers['Ezmax-Date'] = isoDate
+            headers['Ezmax-Fingerprint'] = fingerprint
+            headers['Ezmax-Signature'] = signature
+         } catch (sigErr) {
+            console.warn('Failed to calculate request signature:', sigErr)
+         }
+      }
 
       let res: Response
       if (import.meta.env.DEV) {
@@ -1120,6 +1261,7 @@ async function sendTryRequest() {
 }
 
 watch(tryApiKey, (value) => writeTryApiKeyToSession(value))
+watch(tryApiSecret, (value) => writeTryApiSecretToSession(value))
 watch(trySplitLayout, (value) => writeTrySplitLayoutToSession(value))
 
 watch(
@@ -1131,7 +1273,16 @@ watch(
    { immediate: true }
 )
 
-watch([tryPathParamValues, tryQueryParamValues, tryHeaderParamValues, tryBodyJson, tryDialogEnvironment, showTryRequestBody], () => persistTryRouteState(), { deep: true })
+watch(
+   () => regions.value,
+   (values) => {
+      store.sampleRegion = coalesceRegionChoice(values, store.sampleRegion)
+      tryDialogRegion.value = coalesceRegionChoice(values, tryDialogRegion.value)
+   },
+   { immediate: true }
+)
+
+watch([tryPathParamValues, tryQueryParamValues, tryHeaderParamValues, tryBodyJson, tryDialogEnvironment, tryDialogRegion, showTryRequestBody], () => persistTryRouteState(), { deep: true })
 const serverIndex = ref(0)
 const securityIndex = ref(0)
 const responseStatus = ref(props.responses[0]?.status || '')
@@ -1162,6 +1313,7 @@ watch(
             tryHeaderParamValues.value,
             tryBodyJson.value,
             tryDialogEnvironment.value,
+            tryDialogRegion.value,
             showTryRequestBody.value
          )
       }
@@ -1181,7 +1333,7 @@ watch(
    }
 )
 
-const serverChoices = computed(() => props.servers.map((server, index) => ({ label: serverUrlForEnvironment(server, store.sampleEnvironment), value: index })))
+const serverChoices = computed(() => props.servers.map((server, index) => ({ label: serverUrlForEnvironment(server, store.sampleEnvironment, store.sampleRegion), value: index })))
 const securityChoices = computed(() => props.security.map((option, index) => ({ label: option.label, value: index })))
 const activeServer = computed(() => props.servers[serverIndex.value] || props.servers[0])
 const activeSecurity = computed(() => props.security[securityIndex.value] || props.security[0])
@@ -1191,7 +1343,8 @@ const tryDialogFullUrl = computed(() => {
    const path = buildPathWithParamValues(props.route, tryPathParamValues.value)
    if (props.webhook) return path
    const env = tryDialogEnvironment.value || store.sampleEnvironment
-   const base = joinUrl(activeServer.value ? serverUrlForEnvironment(activeServer.value, env) : '', path)
+   const reg = tryDialogRegion.value || store.sampleRegion
+   const base = joinUrl(activeServer.value ? serverUrlForEnvironment(activeServer.value, env, reg) : '', path)
    const queryEntries = Object.entries(tryQueryParamValues.value).filter(([, v]) => v !== undefined && v.trim() !== '')
    if (!queryEntries.length) return base
    const qs = queryEntries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v.trim())}`).join('&')
@@ -1201,7 +1354,7 @@ const tryDialogFullUrl = computed(() => {
 const fullUrl = computed(() => {
    const path = applyPathParams(props.route, props.parameters)
    if (props.webhook) return path
-   return joinUrl(activeServer.value ? serverUrlForEnvironment(activeServer.value, store.sampleEnvironment) : '', path)
+   return joinUrl(activeServer.value ? serverUrlForEnvironment(activeServer.value, store.sampleEnvironment, store.sampleRegion) : '', path)
 })
 
 const curl = computed(() => {
@@ -1236,6 +1389,6 @@ function escapeHtml(value: string) {
 
 async function copy(value: string, detail: string) {
    await navigator.clipboard.writeText(value)
-   toast.add({ severity: 'success', summary: 'Copié', detail, life: 2200 })
+   toast.add({ severity: 'success', summary: 'Copied', detail, life: 2200 })
 }
 </script>

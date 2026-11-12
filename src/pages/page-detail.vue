@@ -24,12 +24,30 @@
          <div class="path-bar">
             <span class="method" :class="'m-' + current.method">{{ current.method }}</span>
             <code>{{ current.route }}</code>
+            <Button class="info-btn" icon="pi pi-info-circle" text rounded size="small" aria-label="Route information" v-tooltip.bottom="'Route info'" @click="toggleRouteInfo" />
             <Button class="copy-btn" icon="pi pi-copy" text rounded size="small" aria-label="Copy path" @click="copyPath" />
          </div>
 
+         <Popover ref="routeInfoPopover" class="route-info-popover">
+            <div class="route-context-box">
+               <div class="route-context-item">
+                  <span class="context-label"><i class="pi pi-server"></i> Server URL:</span>
+                  <span class="context-content">
+                     Constructed as <code>https://{env}.api.appcluster01.{region}.ezmax.com/rest</code> (or <code>https://{env}.api.global.ezmax.com</code> for global endpoints).
+                  </span>
+               </div>
+               <div v-if="security.length" class="route-context-item">
+                  <span class="context-label"><i class="pi pi-shield"></i> Authentication:</span>
+                  <span class="context-content">
+                     Requires <code>Authorization: Bearer &lt;token&gt;</code> or eZmax API Key (<code>Ezmax-Date</code>, <code>Ezmax-Fingerprint</code>, <code>Ezmax-Signature</code> HMAC-SHA256 request signing).
+                  </span>
+               </div>
+            </div>
+         </Popover>
+
          <XMarkdown v-if="current.operation.description" class="description" :source="current.operation.description" />
 
-         <section v-if="extensions.lists.length" class="section-card">
+         <section v-if="extensions.lists.length || extensions.flags.length || extensions.texts.length" class="section-card">
             <div class="section-head">
                <button type="button" class="fold" :aria-expanded="advancedOpen" @click="advancedOpen = !advancedOpen">
                   <span class="caret-disc"><span class="caret" :class="{ open: advancedOpen }"></span></span>
@@ -37,6 +55,18 @@
                </button>
             </div>
             <div v-show="advancedOpen" class="advanced-grid">
+               <article v-for="flag in extensions.flags" :key="flag.key">
+                  <h3>{{ flag.label }}</h3>
+                  <ul>
+                     <li>true</li>
+                  </ul>
+               </article>
+               <article v-for="text in extensions.texts" :key="text.key">
+                  <h3>{{ text.label }}</h3>
+                  <ul>
+                     <li>{{ text.value }}</li>
+                  </ul>
+               </article>
                <article v-for="list in extensions.lists" :key="list.key">
                   <h3>{{ list.label }} ({{ list.value.length }})</h3>
                   <ul>
@@ -118,7 +148,7 @@
       </div>
 
       <div class="samples-slot">
-         <XSamplesPanel :method="current.method" :route="current.route" :webhook="current.webhook" :servers="servers" :environment-values="environmentValues" :security="security" :parameters="parameters" :request-example="request?.example" :responses="sampleResponses" :code-samples="codeSamples" />
+         <XSamplesPanel :method="current.method" :route="current.route" :webhook="current.webhook" :servers="servers" :environment-values="environmentValues" :region-values="regionValues" :security="security" :parameters="parameters" :request-example="request?.example" :responses="sampleResponses" :code-samples="codeSamples" />
       </div>
    </article>
 
@@ -152,6 +182,7 @@ import InputIcon from 'primevue/inputicon'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
+import Popover from 'primevue/popover'
 import { useToast } from 'primevue/usetoast'
 import XMarkdown from 'src/components/markdown-view/x-markdown.vue'
 import XSamplesPanel from 'src/components/samples-panel/x-samples-panel.vue'
@@ -162,7 +193,7 @@ import { useSchemaDialog } from 'src/composables/use-schema-dialog'
 import { useGlobalStore } from 'src/stores/global'
 import { buildNav, findOperation, findWebhook } from 'src/utils/nav'
 import { flagSeverity, formatTag, vendorExtensions } from 'src/utils/openapi'
-import { chooseServers, groupNameForTag, infrastructureEnvironmentValues, operationForLlm, securityOptions, serverOptions } from 'src/utils/samples'
+import { chooseServers, groupNameForTag, infrastructureEnvironmentValues, infrastructureRegionValues, operationForLlm, securityOptions, serverOptions } from 'src/utils/samples'
 import { bodyModel, callbackModels, filterNodes, listParameters, parameterSections, responseModels, statusTone, type SchemaNode } from 'src/utils/schema-tree'
 
 const route = useRoute()
@@ -170,6 +201,12 @@ const toast = useToast()
 const store = useGlobalStore()
 const { document } = useOpenApi()
 const openSchema = useSchemaDialog() || (() => undefined)
+
+const routeInfoPopover = ref<any>()
+
+function toggleRouteInfo(event: Event) {
+   routeInfoPopover.value?.toggle(event)
+}
 
 const contentType = ref('')
 const filterRequest = ref('')
@@ -211,6 +248,8 @@ const serversRaw = computed(() => chooseServers(document.value, current.value?.p
 const servers = computed(() => serverOptions(serversRaw.value))
 /** Union of `sInfrastructureenvironmenttypeDescription.enum` across root `servers` (canonical list), not the per-route subset from chooseServers. */
 const environmentValues = computed(() => infrastructureEnvironmentValues(document.value?.servers))
+/** Union of `sInfrastructureregionCode.enum` across root `servers`. */
+const regionValues = computed(() => infrastructureRegionValues(document.value?.servers))
 const security = computed(() => securityOptions(current.value?.operation?.security !== undefined ? current.value.operation.security : document.value?.security, document.value?.components?.securitySchemes))
 const codeSamples = computed(() => current.value?.operation?.['x-codeSamples'] || current.value?.operation?.['x-code-samples'] || [])
 
@@ -276,6 +315,13 @@ watch(
    }
 )
 
+watch(
+   () => store.showProperties,
+   (val) => {
+      advancedOpen.value = val
+   }
+)
+
 function hasNestedTrees(nodes?: SchemaNode[]): boolean {
    if (!nodes || !nodes.length) return false
    return nodes.some((node) => node.children.length > 0)
@@ -293,7 +339,7 @@ function toggleExpand(section: string, nodes?: SchemaNode[]) {
 
 async function copyPath() {
    await navigator.clipboard.writeText(current.value?.route || '')
-   toast.add({ severity: 'success', summary: 'Copié', detail: 'La route a été copiée.', life: 2200 })
+   toast.add({ severity: 'success', summary: 'Copied', detail: 'The route path was copied.', life: 2200 })
 }
 
 async function copyLlm() {
@@ -310,6 +356,6 @@ async function copyLlm() {
       responses: responses.value.map((response) => ({ status: response.status, description: response.description, schemaName: response.schemaName, typeLabel: response.typeLabel }))
    })
    await navigator.clipboard.writeText(markdown)
-   toast.add({ severity: 'success', summary: 'Copié', detail: 'Le résumé pour assistant a été copié.', life: 2200 })
+   toast.add({ severity: 'success', summary: 'Copied', detail: 'The assistant summary was copied.', life: 2200 })
 }
 </script>

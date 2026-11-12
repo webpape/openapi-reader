@@ -1,4 +1,5 @@
 import type { FlatParameter } from './schema-tree'
+import { exampleFromSchema } from './schema-tree'
 
 export interface ServerOption {
    url: string
@@ -63,6 +64,8 @@ export function serverOptions(servers: any[] | undefined): ServerOption[] {
 
 /** OpenAPI variable name used for environment (dev / qa / stg / prod / iso) in internal.json */
 export const INFRA_ENV_VAR = 'sInfrastructureenvironmenttypeDescription'
+/** OpenAPI variable name used for region (ca-central-1, etc.) */
+export const INFRA_REGION_VAR = 'sInfrastructureregionCode'
 
 /** Preferred pill order (matches product wording: dev, QA, stage, prod, iso — spec uses `stg` for stage). */
 const INFRA_ENV_CANONICAL_ORDER = ['dev', 'qa', 'stg', 'prod', 'iso']
@@ -86,6 +89,34 @@ export function infrastructureEnvironmentValues(servers: any[] | undefined): str
    return sortInfrastructureEnvironments(out)
 }
 
+/** Collect distinct region enum values from server definitions. Falls back to ['ca-central-1'] if none defined. */
+export function infrastructureRegionValues(servers: any[] | undefined): string[] {
+   const seen = new Set<string>()
+   const out: string[] = []
+   for (const server of servers || []) {
+      const variable = server?.variables?.[INFRA_REGION_VAR]
+      const list = variable?.enum
+      if (Array.isArray(list)) {
+         for (const item of list) {
+            const raw = String(item)
+            const key = raw.toLowerCase()
+            if (!key || seen.has(key)) continue
+            seen.add(key)
+            out.push(raw)
+         }
+      } else if (variable?.default) {
+         const raw = String(variable.default)
+         const key = raw.toLowerCase()
+         if (key && !seen.has(key)) {
+            seen.add(key)
+            out.push(raw)
+         }
+      }
+   }
+   if (!out.length) return ['ca-central-1']
+   return out
+}
+
 function sortInfrastructureEnvironments(values: string[]): string[] {
    const ordered: string[] = []
    const used = new Set<string>()
@@ -102,21 +133,27 @@ function sortInfrastructureEnvironments(values: string[]): string[] {
    return ordered
 }
 
-export function resolveServer(server: any, environment?: string) {
-   const selected = environment ? String(environment).toLowerCase() : ''
+export function resolveServer(server: any, environment?: string, region?: string) {
+   const selectedEnv = environment ? String(environment).toLowerCase() : ''
+   const selectedRegion = region ? String(region).toLowerCase() : ''
    let url = String(server?.url || '')
    for (const [name, variable] of Object.entries(server?.variables || {}) as [string, any][]) {
-      const replacement = name === INFRA_ENV_VAR && selected ? selected : (variable?.default ?? '')
+      let replacement = variable?.default ?? ''
+      if (name === INFRA_ENV_VAR && selectedEnv) replacement = selectedEnv
+      else if (name === INFRA_REGION_VAR && selectedRegion) replacement = selectedRegion
       url = url.replaceAll(`{${name}}`, replacement)
    }
    return url.replace(/\/$/, '')
 }
 
-export function serverUrlForEnvironment(server: ServerOption, environment?: string) {
-   const selected = environment ? String(environment).toLowerCase() : ''
+export function serverUrlForEnvironment(server: ServerOption, environment?: string, region?: string) {
+   const selectedEnv = environment ? String(environment).toLowerCase() : ''
+   const selectedRegion = region ? String(region).toLowerCase() : ''
    let url = server.url
    for (const variable of server.variables) {
-      const replacement = variable.name === INFRA_ENV_VAR && selected ? selected : (variable.defaultValue ?? '')
+      let replacement = variable.defaultValue ?? ''
+      if (variable.name === INFRA_ENV_VAR && selectedEnv) replacement = selectedEnv
+      else if (variable.name === INFRA_REGION_VAR && selectedRegion) replacement = selectedRegion
       url = url.replaceAll(`{${variable.name}}`, replacement)
    }
    return url.replace(/\/$/, '')
@@ -134,17 +171,40 @@ export function coalesceEnvironmentChoice(values: string[], current: string | un
    return values[0]
 }
 
+/** Pick a persisted region that is valid for the current region list; default ca-central-1 when available. */
+export function coalesceRegionChoice(values: string[], current: string | undefined): string {
+   if (!values.length) return 'ca-central-1'
+   const lower = (current || '').toLowerCase()
+   if (lower && values.some((v) => v.toLowerCase() === lower)) return values.find((v) => v.toLowerCase() === lower) || lower
+   const ca = values.find((v) => v.toLowerCase() === 'ca-central-1')
+   if (ca) return ca
+   return values[0]
+}
+
 export function joinUrl(server: string, path: string) {
    if (!server) return path
    if (/^https?:\/\//.test(path)) return path
    return `${server.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
+function fallbackParamValue(parameter?: FlatParameter): string {
+   if (!parameter) return ''
+   if (parameter.example !== undefined && parameter.example !== null) return String(parameter.example)
+   const schema = parameter.schema || {}
+   if (schema.example !== undefined && schema.example !== null) return String(schema.example)
+   if (schema.default !== undefined && schema.default !== null) return String(schema.default)
+   if (Array.isArray(schema.enum) && schema.enum.length > 0) return String(schema.enum[0])
+   const fromSchema = exampleFromSchema(schema)
+   if (fromSchema !== undefined && fromSchema !== null && typeof fromSchema !== 'object') return String(fromSchema)
+   return ''
+}
+
 export function applyPathParams(path: string, parameters: FlatParameter[]) {
    let result = path
    for (const parameter of parameters) {
       if (parameter.in !== 'path') continue
-      const raw = parameter.example !== undefined ? String(parameter.example) : `{${parameter.name}}`
+      const fallback = fallbackParamValue(parameter)
+      const raw = fallback ? fallback : `{${parameter.name}}`
       const value = raw.startsWith('{') ? raw : encodeURIComponent(raw)
       result = result.replaceAll(`{${parameter.name}}`, value)
    }
@@ -171,7 +231,7 @@ export function defaultPathParamValues(pathTemplate: string, parameters: FlatPar
    const out: Record<string, string> = {}
    for (const name of pathTemplateParamNames(pathTemplate)) {
       const p = parameters.find((x) => x.in === 'path' && x.name === name)
-      out[name] = p?.example !== undefined ? String(p.example) : ''
+      out[name] = fallbackParamValue(p)
    }
    return out
 }

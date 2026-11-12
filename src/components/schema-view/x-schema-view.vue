@@ -15,10 +15,7 @@
 
       <XMarkdown v-if="meta.description" class="description" :source="meta.description" />
 
-      <div v-if="meta.enumValues.length" class="enum-row">
-         <span class="enum-prefix">enum:</span>
-         <span v-for="value in meta.enumValues" :key="String(value)" class="enum-chip">{{ value === '' ? '""' : value }}</span>
-      </div>
+      <XBadgeEnum v-if="meta.enumValues.length" :values="meta.enumValues" />
 
       <p v-if="meta.pattern" class="section-note">Pattern <code>{{ meta.pattern }}</code></p>
 
@@ -30,7 +27,7 @@
       </section>
    </article>
    <article v-else :class="embedded ? 'schema-embedded' : 'page'">
-      <Message severity="warn" :closable="false">Schema « {{ schemaName }} » introuvable dans cette spécification.</Message>
+      <Message severity="warn" :closable="false">Schema "{{ schemaName }}" not found in this specification.</Message>
    </article>
 </template>
 
@@ -39,6 +36,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Message from 'primevue/message'
 import Tag from 'primevue/tag'
+import XBadgeEnum from 'src/components/badge-enum'
 import XMarkdown from 'src/components/markdown-view/x-markdown.vue'
 import XSchemaTree from 'src/components/schema-tree/x-schema-tree.vue'
 import { useOpenApi } from 'src/composables/use-openapi'

@@ -1,7 +1,7 @@
 <template>
    <article class="page changelog-page">
       <header class="page-header">
-         <p class="kicker">Notes de version</p>
+         <p class="kicker">Release Notes</p>
          <h2>Changelog</h2>
       </header>
       <p v-if="error" class="section-note">{{ error }}</p>
@@ -30,7 +30,7 @@ onMounted(async () => {
       if (!response.ok) throw new Error(String(response.status))
       source.value = withMethodBadges(await response.text())
    } catch {
-      error.value = 'Impossible de charger le changelog.'
+      error.value = 'Failed to load changelog.'
    }
 })
 </script>

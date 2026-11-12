@@ -23,3 +23,6 @@ La sortie est le dossier `dist`. La spec interne est servie depuis `/specs/inter
 ## Specs
 
 L'en-tête charge `internal.json` localement, ou une spec OpenAPI publiée dans [eZmax-API/specs](https://github.com/eZmaxinc/eZmax-API/tree/master/specs). Les collections Postman et les fichiers de plus de 8 Mo ne sont pas rendus.
+
+## UI Language Rule
+The application must be exclusively in English across all user-facing components, notifications, modals, placeholders, and tooltips. Do not introduce French or other languages in the UI.
